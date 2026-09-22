@@ -25,6 +25,20 @@ def owned_media(db, user, ids, purposes=None):
         if purposes: expect(m.purpose in purposes, "附件用途不符")
 
 
+@router.get("/public-media/{media_id}")
+def public_media(media_id: str, db: Session = Depends(session)):
+    from .models import SKU, Product, Setting, Review
+    m = get(db, Media, media_id)
+    allowed = False
+    if m.purpose == "product":
+        allowed = any(media_id in sku.images for sku in db.query(SKU).join(Product).filter(SKU.status == "active", Product.status == "active"))
+    if m.purpose in ["product", "banner", "support"] and not allowed:
+        allowed = any(any(row.get("image") == media_id for row in s.value) for s in db.query(Setting) if isinstance(s.value, list))
+    if m.purpose == "review": allowed = any(media_id in r.media_ids for r in db.query(Review).filter_by(deleted=False))
+    expect(allowed, "素材尚未发布", 404)
+    return FileResponse(m.path, media_type=m.mime, headers={"X-Content-Type-Options": "nosniff"})
+
+
 @router.post("/media", status_code=201)
 async def upload(file: UploadFile = File(...), purpose: Literal["product", "query", "license", "proof", "review", "ticket", "banner", "support"] = Form(...), user=Depends(current_user), db: Session = Depends(session)):
     if purpose in ["banner", "support"]:

@@ -1,4 +1,5 @@
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from uuid import uuid4
 from fastapi import FastAPI, Request
@@ -6,17 +7,31 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 from .db import Base, engine, ROOT
-from . import accounts, catalog, media, orders, operations
+from . import accounts, catalog, media, orders, operations, search
 
 
 @asynccontextmanager
 async def lifespan(app):
     Base.metadata.create_all(engine)
-    yield
+    from .db import SessionLocal
+    from .models import IndexTask
+    with SessionLocal() as db:
+        db.query(IndexTask).filter_by(status="running").update({"status": "pending", "error": "interrupted worker recovered"})
+        db.commit()
+    async def worker():
+        while True:
+            await asyncio.to_thread(search.process_pending)
+            await asyncio.sleep(2)
+    task = asyncio.create_task(worker())
+    try: yield
+    finally:
+        task.cancel()
+        try: await task
+        except asyncio.CancelledError: pass
 
 
 app = FastAPI(title="LumaSupply API", version="1.0.0", description="灯具商城、SKU 多模态检索与采购协同。金额单位为分。", lifespan=lifespan)
-for module in [accounts, catalog, media, orders, operations]: app.include_router(module.router)
+for module in [accounts, catalog, media, orders, operations, search]: app.include_router(module.router)
 
 
 @app.middleware("http")
