@@ -14,8 +14,8 @@ def aliyun_search(image_bytes: bytes, limit: int):
         from alibabacloud_tea_openapi.models import Config
         config = Config(access_key_id=os.environ[required[0]], access_key_secret=os.environ[required[1]], endpoint=os.environ[required[2]])
         client = Client(config)
-        request = models.SearchImageRequest(instance_name=os.environ[required[3]], pic_content=base64.b64encode(image_bytes).decode(), num=limit, type=0)
-        response = client.search_image(request).body.to_map()
+        request = models.SearchImageByPicRequest(instance_name=os.environ[required[3]], pic_content=base64.b64encode(image_bytes).decode(), num=limit)
+        response = client.search_image_by_pic(request).body.to_map()
         if not response.get("Success", True): raise RuntimeError("SearchImage rejected")
         return [{"sku_id": int(x["ProductId"]), "score": float(x["Score"]), "image_id": x["PicName"]} for x in response.get("Auctions", [])]
     except ImportError as exc:
