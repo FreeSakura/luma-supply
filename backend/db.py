@@ -7,7 +7,7 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 load_dotenv()
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = ROOT / "data" / "runtime"
+RUNTIME = Path(os.getenv("DATA_DIR", str(ROOT / "data" / "runtime")))
 RUNTIME.mkdir(parents=True, exist_ok=True)
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{RUNTIME / 'lumasupply.db'}")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 20} if DATABASE_URL.startswith("sqlite") else {}, pool_pre_ping=True)

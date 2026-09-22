@@ -1,0 +1,5 @@
+# Optional integrations and encoders. Weights are downloaded separately, never committed.
+torch==2.5.1
+torchvision==0.20.1
+cn-clip==1.5.1
+alibabacloud-imagesearch20201214==4.0.0

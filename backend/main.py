@@ -61,3 +61,6 @@ def mount_frontend():
         def spa(path: str):
             if path.startswith("api/"): return JSONResponse(status_code=404, content={"detail": "Not found"})
             return FileResponse(dist / "index.html")
+
+
+mount_frontend()

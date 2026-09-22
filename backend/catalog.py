@@ -253,6 +253,10 @@ def quote_review(quote_id: int, body: DecisionIn, user=Depends(require("admin", 
         expect(get(db, Merchant, obj.merchant_id).status == "approved", "商家未通过认证")
         newer = db.query(Quote).filter(Quote.merchant_id == obj.merchant_id, Quote.sku_id == obj.sku_id, Quote.status == "approved", Quote.version > obj.version).first()
         expect(not newer, "已有更新批准版本", 409)
+        previous = db.query(Quote).filter(Quote.merchant_id == obj.merchant_id, Quote.sku_id == obj.sku_id, Quote.status == "approved").order_by(Quote.version.desc()).first()
+        if previous:
+            obj.reserved_quantity = previous.reserved_quantity
+            expect(obj.available_quantity is None or obj.available_quantity >= obj.reserved_quantity, "新报价供货总量小于已确认采购数量")
         db.query(Quote).filter(Quote.merchant_id == obj.merchant_id, Quote.sku_id == obj.sku_id, Quote.status == "approved").update({"active": False})
         obj.active = True
     obj.status = "approved" if body.approve else "rejected"; obj.reason = body.reason

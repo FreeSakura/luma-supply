@@ -1,0 +1,36 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/work/index",
+    "pages/profile/index",
+    "pages/detail/index",
+    "pages/login/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "LumaSupply",
+    "navigationBarBackgroundColor": "#f5f7f1",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f7f1"
+  },
+  "tabBar": {
+    "color": "#889578",
+    "selectedColor": "#2d4735",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "发现 Discover"
+      },
+      {
+        "pagePath": "pages/work/index",
+        "text": "业务 Workspace"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的 Profile"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

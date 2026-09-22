@@ -1,0 +1,12 @@
+.git
+.venv
+local-only
+output
+data
+web/node_modules
+web/dist
+*.pdf
+*.docx
+*.pptx
+.env
+**/__pycache__
