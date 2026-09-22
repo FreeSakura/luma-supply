@@ -1,6 +1,8 @@
 # Course originals, reports, credentials and runtime data stay local.
 /local-only/
 /output/
+/.chart-data-*/
+/.codex-finalizer/
 /*.pdf
 /*.docx
 /*.pptx
