@@ -80,6 +80,13 @@ def test_quote_version_expiry_and_disable(client,headers):
     assert client.get('/api/catalog/products').json()[0]['skus'][0]['price']==old
     assert client.post(f"/api/quotes/{q['id']}/review",headers=h[1],json={'approve':True}).status_code==200
     assert client.get('/api/catalog/products').json()[0]['skus'][0]['price']==2400
+    with SessionLocal() as db:
+        db.get(Quote,q['id']).reserved_quantity=3;db.commit()
+    revision=client.post('/api/quotes',headers=h[4],json={**payload,'price':2100,'available_quantity':2}).json()
+    assert client.post(f"/api/quotes/{revision['id']}/review",headers=h[1],json={'approve':True}).status_code==400
+    revision=client.post('/api/quotes',headers=h[4],json={**payload,'price':2100,'available_quantity':8}).json()
+    approved=client.post(f"/api/quotes/{revision['id']}/review",headers=h[1],json={'approve':True})
+    assert approved.status_code==200 and approved.json()['reserved_quantity']==3
     assert client.post('/api/admin/merchants/1/disable',headers=h[1],json={}).status_code==200
     assert client.get('/api/catalog/products').json()[0]['skus'][0]['price']==6600
     assert client.get('/api/quotes',headers=h[4]).status_code==401

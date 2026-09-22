@@ -19,4 +19,30 @@
 
 仓库为私有。原始课程文件、个人信息、密钥、用户上传、数据库、模型权重及课程报告不进入 Git。未授权对外开源，不添加开放源代码许可证。自主生成的演示数据与真实商家数据明确区分；外部服务未联调时不标记为验收通过。金额统一使用整数分，历史订单保存快照。
 
-详细运行说明随实现补充。阶段记录见 `docs/ITERATIONS.md`。
+## 快速运行
+
+Windows：`powershell -ExecutionPolicy Bypass -File scripts/start.ps1`。
+
+Linux/macOS：`sh scripts/start.sh`。
+
+打开 `http://127.0.0.1:8000`；API 文档为 `/docs`。首次初始化的随机演示密码写入 `local-only/demo-accounts.json`，账户为 `admin`、`customer`、`merchant`、`merchant2`、`merchant3`。已有数据不会被脚本清空。
+
+微信开发者工具可分别导入 `miniapps/customer`、`miniapps/merchant`。实际发布需要自己的 AppID 与 HTTPS 域名。详细步骤见 [部署说明](docs/DEPLOYMENT.md) 与 [小程序说明](miniapps/README.md)。
+
+## 核心实现
+
+- 审核生效的报价版本、万分比定价规则、订单规格与金额快照。
+- 客服成交、客户确认、采购建议及事务确认、凭证和分批发货、评价售后。
+- 360 维传统视觉特征与字符 TF-IDF 联合检索，具体 SKU 命中、多视图聚合、裁剪和硬条件过滤。
+- CP-SAT 求解供应商组合和合并运费，保留最优/可行状态，并提供两种贪心及枚举对照。
+- 三端账户归属控制、员工模块权限、未读通知、审计、索引版本与失败重试。
+
+验证：`python -m pytest -q`（11 项关键测试）。前端：`cd web && npm ci && npm run build`。实验：`python -m scripts.experiments --no-deep`；安装 PyTorch/torchvision 后不加该选项可运行 ResNet18 对照。
+
+## 已验证范围
+
+本地 SQLite 业务主线、Vue 生产构建和三角色浏览器串联已验证。受控检索实验使用 144 张原创程序图、96 条测试查询，不能作为真实场景泛化准确率。采购比较包含 40 组实例，10 个小实例与完整枚举一致。
+
+外部阿里云/微信/短信未配置，接口明确返回未配置状态；Chinese-CLIP 为可选编码器，未计入已运行实验。MySQL、Docker 和微信真机仍需对应环境验收。用户确认当前先完成本地交付并列明这些联调项。
+
+阶段记录见 [迭代记录](docs/ITERATIONS.md)，验收映射见 [验收清单](docs/ACCEPTANCE.md)。全部课程报告保存在本地 `output/reports/`，不随源码推送。

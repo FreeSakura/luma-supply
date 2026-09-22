@@ -205,7 +205,7 @@ def save_settings(body: SettingsIn, user=Depends(require("admin", "staff", modul
         expect(not banner.link or banner.link.startswith("/product/"), "轮播链接仅支持站内商品详情")
     for key, rows in body.model_dump().items():
         for row in rows:
-            owned_media(db, user, [row["image"]], ["support"] if key == "support" else ["banner"])
+            owned_media(db, user, [row["image"]], ["support"] if key == "support" else ["banner", "product"])
         db.merge(Setting(key=key, value=rows))
     audit(db, user, "settings.update", "operations")
     return body.model_dump()

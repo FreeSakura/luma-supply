@@ -17,6 +17,11 @@ from algorithms.procurement import solve, greedy
 router = APIRouter(prefix="/api")
 
 
+@router.get("/order-customers")
+def order_customers(user=Depends(require("admin", "staff", module="orders")), db: Session = Depends(session)):
+    return [{"id": u.id, "username": u.username, "name": u.name} for u in db.query(User).filter_by(role="customer", active=True)]
+
+
 def accessible_order(db, user, order_id, module="orders"):
     obj = get(db, Order, order_id)
     allowed = user.role == "admin" or user.role == "staff" and module in user.permissions or user.role == "customer" and obj.customer_id == user.id

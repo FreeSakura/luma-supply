@@ -20,9 +20,13 @@ def valid_quotes(db, sku_id=None):
 
 
 def price_info(db, sku):
-    quotes = list(valid_quotes(db, sku.id))
+    if "price_context" not in db.info:
+        groups = {}
+        for quote in valid_quotes(db): groups.setdefault(quote.sku_id, []).append(quote)
+        db.info["price_context"] = (groups, db.query(PricingRule).order_by(PricingRule.id.desc()).first())
+    groups, rule = db.info["price_context"]
+    quotes = groups.get(sku.id, [])
     base = min([sku.initial_price] + [q.price for q in quotes])
-    rule = db.query(PricingRule).order_by(PricingRule.id.desc()).first()
     multiplier = rule.multiplier_bp if rule else 10000
     amount = sku.manual_price if sku.manual_price is not None else (base * multiplier + 5000) // 10000
     return {"price": amount, "pricing_rule_id": rule.id if rule else None, "quote_count": len({q.merchant_id for q in quotes}), "stock_status": sku.stock_status}
@@ -35,12 +39,14 @@ def sku_view(db, sku, internal=False):
 
 
 def product_view(db, product, internal=False, selected_sku=None):
-    skus = db.query(SKU).filter_by(product_id=product.id)
-    if not internal: skus = skus.filter_by(status="active")
+    if "catalog_skus" not in db.info:
+        db.info["catalog_skus"] = db.query(SKU).all()
+    skus = [s for s in db.info["catalog_skus"] if s.product_id == product.id and (internal or s.status == "active")]
     rows = [sku_view(db, s, internal) for s in skus]
     if not rows: return None
     prices = [s["price"] for s in rows]
-    return {**view(product), "skus": rows, "min_price": min(prices), "max_price": max(prices), "selected_sku_id": selected_sku or min(rows, key=lambda s: s["price"])["id"], "quote_count": len({q.merchant_id for q in valid_quotes(db).filter(Quote.sku_id.in_([s["id"] for s in rows]))})}
+    groups = db.info["price_context"][0]
+    return {**view(product), "skus": rows, "min_price": min(prices), "max_price": max(prices), "selected_sku_id": selected_sku or min(rows, key=lambda s: s["price"])["id"], "quote_count": len({q.merchant_id for s in rows for q in groups.get(s["id"], [])})}
 
 
 @router.get("/catalog/categories")

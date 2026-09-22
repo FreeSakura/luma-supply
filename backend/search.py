@@ -138,7 +138,7 @@ def search(body: SearchIn, user=Depends(current_user), db: Session = Depends(ses
             if not sku or sku.status != "active": continue
             product = db.get(Product, sku.product_id)
             if product.status != "active": continue
-            entries.append({**entry, **price_info(db, sku)}); positions.append(i)
+            entries.append({**entry, **price_info(db, sku), "category": product.category, "attributes": {**sku.attributes, "color": sku.color}, "product_name": product.name}); positions.append(i)
         filtered_vectors = vectors[positions] if positions else np.empty((0, vectors.shape[1] if vectors.ndim == 2 else 0))
         text_vector = enc.encode_text(body.text) if body.text and hasattr(enc, "encode_text") else None
         hits = rank(query_vector, filtered_vectors, entries, text=body.text, image_weight=0.3, text_weight=0.7, filters={"category": body.category, "max_price": body.max_price, "available_only": body.available_only, "attributes": body.attributes}, limit=body.limit, clip_text_vector=text_vector, threshold=0.01 if query_vector is None else 0.15)
