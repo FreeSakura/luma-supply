@@ -36,6 +36,32 @@ def encoder():
     return _encoder
 
 
+def sku_search_entry(sku, product):
+    """Only image vectors are indexed; business text is refreshed at query time."""
+    return {"sku_id": sku.id, "product_id": product.id, "sku_code": sku.code,
+            "product_name": product.name, "category": product.category,
+            "attributes": {**sku.attributes, "color": sku.color},
+            "text": " ".join([product.name, product.title, product.category, sku.code,
+                              sku.color, sku.specification, json.dumps(sku.attributes, ensure_ascii=False)])}
+
+
+def current_entries(db, indexed_entries):
+    ids = {entry["sku_id"] for entry in indexed_entries}
+    rows = db.query(SKU, Product).join(Product, Product.id == SKU.product_id).filter(
+        SKU.id.in_(ids), SKU.status == "active", Product.status == "active"
+    ).all() if ids else []
+    current = {sku.id: (sku, product) for sku, product in rows}
+    entries, positions = [], []
+    for position, entry in enumerate(indexed_entries):
+        pair = current.get(entry["sku_id"])
+        if pair is None: continue
+        sku, product = pair
+        if entry["image_id"] not in sku.images: continue
+        entries.append({**entry, **sku_search_entry(sku, product), **price_info(db, sku)})
+        positions.append(position)
+    return entries, positions
+
+
 def build_index(db):
     enc = encoder(); entries, vectors = [], []
     for sku in db.query(SKU).join(Product).filter(SKU.status == "active", Product.status == "active"):
@@ -44,7 +70,7 @@ def build_index(db):
             media = get(db, Media, mid)
             with Image.open(media.path) as image: vector = enc.encode_image(image)
             vectors.append(vector)
-            entries.append({"sku_id": sku.id, "product_id": product.id, "sku_code": sku.code, "product_name": product.name, "image_id": mid, "category": product.category, "attributes": {**sku.attributes, "color": sku.color}, "text": " ".join([product.name, product.title, product.category, sku.code, sku.color, sku.specification, json.dumps(sku.attributes, ensure_ascii=False)])})
+            entries.append({**sku_search_entry(sku, product), "image_id": mid})
     version = now().strftime("%Y%m%d%H%M%S") + "-" + uuid4().hex[:8]
     matrix = np.vstack(vectors) if vectors else np.empty((0, 0), dtype=np.float32)
     np.savez_compressed(INDEX_ROOT / f"{version}.npz", vectors=matrix)
@@ -132,13 +158,7 @@ def search(body: SearchIn, user=Depends(current_user), db: Session = Depends(ses
             try:
                 with Image.open(media.path) as im: query_vector = enc.encode_image(im, body.crop)
             except ValueError as exc: raise HTTPException(400, str(exc))
-        entries, positions = [], []
-        for i, entry in enumerate(metadata["entries"]):
-            sku = db.get(SKU, entry["sku_id"])
-            if not sku or sku.status != "active": continue
-            product = db.get(Product, sku.product_id)
-            if product.status != "active": continue
-            entries.append({**entry, **price_info(db, sku), "category": product.category, "attributes": {**sku.attributes, "color": sku.color}, "product_name": product.name}); positions.append(i)
+        entries, positions = current_entries(db, metadata["entries"])
         filtered_vectors = vectors[positions] if positions else np.empty((0, vectors.shape[1] if vectors.ndim == 2 else 0))
         text_vector = enc.encode_text(body.text) if body.text and hasattr(enc, "encode_text") else None
         hits = rank(query_vector, filtered_vectors, entries, text=body.text, image_weight=0.3, text_weight=0.7, filters={"category": body.category, "max_price": body.max_price, "available_only": body.available_only, "attributes": body.attributes}, limit=body.limit, clip_text_vector=text_vector, threshold=0.01 if query_vector is None else 0.15)

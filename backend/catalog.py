@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Literal
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -40,8 +40,11 @@ def sku_view(db, sku, internal=False):
 
 def product_view(db, product, internal=False, selected_sku=None):
     if "catalog_skus" not in db.info:
-        db.info["catalog_skus"] = db.query(SKU).all()
-    skus = [s for s in db.info["catalog_skus"] if s.product_id == product.id and (internal or s.status == "active")]
+        db.info["catalog_skus"] = {}
+    groups_by_product = db.info["catalog_skus"]
+    if product.id not in groups_by_product:
+        groups_by_product[product.id] = db.query(SKU).filter_by(product_id=product.id).all()
+    skus = [s for s in groups_by_product[product.id] if internal or s.status == "active"]
     rows = [sku_view(db, s, internal) for s in skus]
     if not rows: return None
     prices = [s["price"] for s in rows]
@@ -55,15 +58,33 @@ def categories(db: Session = Depends(session)):
 
 
 @router.get("/catalog/products")
-def products(q: str = "", category: str = "", limit: int = 100, db: Session = Depends(session)):
-    rows = db.query(Product).filter_by(status="active")
+def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(session)):
+    q = q.strip()
+    active_skus = db.query(SKU.id).filter(SKU.product_id == Product.id, SKU.status == "active")
+    rows = db.query(Product).filter(Product.status == "active", active_skus.exists())
     if category: rows = rows.filter_by(category=category)
+    if q:
+        # SQL LIKE wildcards must remain literal user input (e.g. SKU "LED_1").
+        term = q.lower()
+        matching_skus = active_skus.filter(
+            func.lower(SKU.code).contains(term, autoescape=True)
+            | func.lower(SKU.color).contains(term, autoescape=True)
+            | func.lower(SKU.specification).contains(term, autoescape=True)
+        )
+        rows = rows.filter(func.lower(Product.name).contains(term, autoescape=True)
+                           | func.lower(Product.title).contains(term, autoescape=True)
+                           | matching_skus.exists())
+    page = rows.order_by(Product.id.desc()).offset(offset).limit(limit).all()
+    page_skus = {p.id: [] for p in page}
+    if page:
+        for sku in db.query(SKU).filter(SKU.product_id.in_(page_skus), SKU.status == "active"):
+            page_skus[sku.product_id].append(sku)
+    db.info["catalog_skus"] = page_skus
     results = []
-    for product in rows.order_by(Product.id.desc()).limit(min(max(limit, 1), 200)):
+    for product in page:
         result = product_view(db, product)
         if not result: continue
-        matched = [s for s in result["skus"] if q.lower() in (s["code"] + s["color"] + s["specification"]).lower()]
-        if q and q.lower() not in (product.name + product.title).lower() and not matched: continue
+        matched = [s for s in result["skus"] if any(q.lower() in s[field].lower() for field in ("code", "color", "specification"))]
         if matched and q:
             selected = min(matched, key=lambda s: s["price"])
             result["selected_sku_id"], result["min_price"] = selected["id"], selected["price"]

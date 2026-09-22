@@ -67,10 +67,15 @@ def greedy(lines, quotes, prefer_fewer=False, max_days=365):
     start = perf_counter()
     options, failures = eligible_options(lines, quotes, max_days)
     if failures: return {"status": "INFEASIBLE", "reasons": failures}
-    used, selected = set(), []
+    paid_freight, selected = {}, []
     for line, row in zip(lines, options):
-        key = lambda q: (q["price"] * line["quantity"] + (q.get("freight", 0) if prefer_fewer and q["merchant_id"] not in used else 0), q["id"])
-        choice = min(row, key=key); selected.append(choice); used.add(choice["merchant_id"])
+        def incremental_cost(quote):
+            extra_freight = max(0, quote.get("freight", 0) - paid_freight.get(quote["merchant_id"], 0))
+            return (quote["price"] * line["quantity"] + (extra_freight if prefer_fewer else 0), quote["id"])
+        choice = min(row, key=incremental_cost)
+        selected.append(choice)
+        mid = choice["merchant_id"]
+        paid_freight[mid] = max(paid_freight.get(mid, 0), choice.get("freight", 0))
     return summarize(lines, selected, "HEURISTIC", perf_counter() - start)
 
 
