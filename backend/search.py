@@ -122,7 +122,7 @@ class SearchIn(BaseModel):
 
 
 @router.post("/search")
-def search(body: SearchIn, user=Depends(current_user), db: Session = Depends(session)):
+def search(body: SearchIn, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     start = perf_counter()
     expect(body.image_id or body.text.strip(), "请上传图片或输入搜索文字")
     query_vector, media = None, None
@@ -178,7 +178,7 @@ class FeedbackIn(BaseModel):
 
 
 @router.post("/search/{query_id}/feedback")
-def feedback(query_id: int, body: FeedbackIn, user=Depends(current_user), db: Session = Depends(session)):
+def feedback(query_id: int, body: FeedbackIn, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     obj = get(db, SearchLog, query_id); expect(obj.user_id == user.id, "无权操作", 403)
     expect(body.sku_id is None or body.sku_id in obj.results, "反馈 SKU 不在该次搜索结果中")
     obj.feedback = obj.feedback + [body.model_dump()]
@@ -186,7 +186,7 @@ def feedback(query_id: int, body: FeedbackIn, user=Depends(current_user), db: Se
 
 
 @router.get("/admin/index")
-def index_status(user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def index_status(user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     try:
         metadata, vectors = load_index(); info = {"version": metadata["version"], "encoder": metadata["encoder"], "images": len(metadata["entries"]), "memory_bytes": vectors.nbytes}
     except HTTPException: info = {"version": None}
@@ -194,12 +194,12 @@ def index_status(user=Depends(require("admin", "staff", module="catalog")), db: 
 
 
 @router.post("/admin/index/rebuild")
-def rebuild(user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def rebuild(user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     queue_index(db, "manual rebuild"); audit(db, user, "index.rebuild", "all")
     return {"queued": True}
 
 
 @router.post("/admin/index/{task_id}/retry")
-def retry(task_id: int, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def retry(task_id: int, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     t = get(db, IndexTask, task_id); expect(t.status == "failed", "仅失败任务可重试")
     t.status = "pending"; t.error = ""; return view(t)

@@ -3,13 +3,12 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from .db import session
-from .models import Wishlist, Inquiry, InquiryBrief, SKU, Product, Review, Ticket, OrderLine, Order, Notification, Setting, Audit, Procurement, Quote, IndexTask, SearchLog, now
+from .models import Wishlist, SKU, Product, Review, Ticket, OrderLine, Order, Notification, Setting, Audit, Procurement, Quote, IndexTask, SearchLog, now
 from .security import current_user, require, audit, notify, notify_staff
 from .common import get, expect, view
 from .catalog import sku_view
 from .orders import accessible_order
 from .media import owned_media
-from .inquiry_service import InquiryIn, prepare_inquiry, inquiry_view
 
 router = APIRouter(prefix="/api")
 
@@ -24,12 +23,12 @@ class WishIn(BaseModel):
 
 
 @router.get("/wishlist")
-def wishlist(user=Depends(require("customer")), db: Session = Depends(session)):
+def wishlist(user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
     return [{**view(w), "sku": sku_view(db, get(db, SKU, w.sku_id)), "product_name": get(db, Product, get(db, SKU, w.sku_id).product_id).name} for w in db.query(Wishlist).filter_by(user_id=user.id)]
 
 
 @router.post("/wishlist")
-def save_wish(body: WishIn, user=Depends(require("customer")), db: Session = Depends(session)):
+def save_wish(body: WishIn, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
     sku = get(db, SKU, body.sku_id)
     expect(sku.status == "active" and get(db, Product, sku.product_id).status == "active", "商品未上架")
     obj = db.query(Wishlist).filter_by(user_id=user.id, sku_id=body.sku_id, room=body.room).first()
@@ -40,35 +39,9 @@ def save_wish(body: WishIn, user=Depends(require("customer")), db: Session = Dep
 
 
 @router.delete("/wishlist/{wish_id}")
-def remove_wish(wish_id: int, user=Depends(require("customer")), db: Session = Depends(session)):
+def remove_wish(wish_id: int, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
     obj = get(db, Wishlist, wish_id); expect(obj.user_id == user.id, "无权操作", 403); db.delete(obj)
     return {"deleted": True}
-
-
-@router.post("/inquiries/preview")
-def preview_inquiry(body: InquiryIn, user=Depends(require("customer")), db: Session = Depends(session)):
-    return prepare_inquiry(db, user, body)
-
-
-@router.post("/inquiries", status_code=201)
-def create_inquiry(body: InquiryIn, user=Depends(require("customer")), db: Session = Depends(session)):
-    prepared = prepare_inquiry(db, user, body)
-    expect(prepared['can_submit'], "清单中有未上架商品，请调整选择后再提交", 409)
-    obj = Inquiry(user_id=user.id, items=prepared['items'], message=body.message); db.add(obj); db.flush()
-    db.add(InquiryBrief(inquiry_id=obj.id, requirements=prepared['requirements'], estimate=prepared['estimate']))
-    db.flush()
-    notify_staff(db, "orders", f"新的清单询价 #{obj.id}", "inquiries")
-    return inquiry_view(db, obj)
-
-
-@router.get("/inquiries")
-def inquiries(user=Depends(current_user), db: Session = Depends(session)):
-    rows = db.query(Inquiry)
-    if user.role == "customer": rows = rows.filter_by(user_id=user.id)
-    else: expect(user.role == "admin" or user.role == "staff" and "orders" in user.permissions, "无权访问", 403)
-    inquiries = rows.order_by(Inquiry.id.desc()).all()
-    briefs = {brief.inquiry_id: brief for brief in db.query(InquiryBrief).filter(InquiryBrief.inquiry_id.in_([x.id for x in inquiries]))} if inquiries else {}
-    return [inquiry_view(db, x, briefs) for x in inquiries]
 
 
 class ReviewIn(BaseModel):
@@ -79,7 +52,7 @@ class ReviewIn(BaseModel):
 
 
 @router.post("/reviews", status_code=201)
-def add_review(body: ReviewIn, user=Depends(require("customer")), db: Session = Depends(session)):
+def add_review(body: ReviewIn, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
     obj = accessible_order(db, user, body.order_id)
     expect(obj.status == "completed", "签收后可评价")
     expect(db.query(OrderLine).filter_by(order_id=obj.id, sku_id=body.sku_id).first(), "规格不属于该订单")
@@ -91,7 +64,7 @@ def add_review(body: ReviewIn, user=Depends(require("customer")), db: Session = 
 
 
 @router.get("/reviews")
-def reviews(sku_id: int | None = None, db: Session = Depends(session)):
+def reviews(sku_id: int | None = None, db: Session = Depends(session, scope="function")):
     rows = db.query(Review).filter_by(deleted=False)
     if sku_id: rows = rows.filter_by(sku_id=sku_id)
     return [view(x, exclude=("user_id", "order_id")) for x in rows.order_by(Review.id.desc()).limit(100)]
@@ -103,7 +76,7 @@ class ReplyIn(BaseModel):
 
 
 @router.patch("/reviews/{review_id}")
-def reply_review(review_id: int, body: ReplyIn, user=Depends(require("admin", "staff", module="operations")), db: Session = Depends(session)):
+def reply_review(review_id: int, body: ReplyIn, user=Depends(require("admin", "staff", module="operations")), db: Session = Depends(session, scope="function")):
     obj = get(db, Review, review_id); obj.reply, obj.deleted = body.reply, body.deleted
     audit(db, user, "review.moderate", obj.id, body.model_dump())
     if body.reply: notify(db, obj.user_id, f"您的评价收到回复：{body.reply}", "orders")
@@ -120,7 +93,7 @@ class TicketIn(BaseModel):
 
 
 @router.post("/tickets", status_code=201)
-def add_ticket(body: TicketIn, user=Depends(require("customer")), db: Session = Depends(session)):
+def add_ticket(body: TicketIn, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
     obj = accessible_order(db, user, body.order_id)
     expect(obj.status in ["fulfilling", "completed"], "履约开始后可申请售后")
     line = get(db, OrderLine, body.line_id)
@@ -132,7 +105,7 @@ def add_ticket(body: TicketIn, user=Depends(require("customer")), db: Session = 
 
 
 @router.get("/tickets")
-def tickets(user=Depends(current_user), db: Session = Depends(session)):
+def tickets(user=Depends(current_user), db: Session = Depends(session, scope="function")):
     rows = db.query(Ticket)
     if user.role == "customer": rows = rows.filter_by(user_id=user.id)
     else: expect(user.role == "admin" or user.role == "staff" and "orders" in user.permissions, "无权访问", 403)
@@ -145,7 +118,7 @@ class TicketUpdate(BaseModel):
 
 
 @router.patch("/tickets/{ticket_id}")
-def update_ticket(ticket_id: int, body: TicketUpdate, user=Depends(require("admin", "staff", module="orders")), db: Session = Depends(session)):
+def update_ticket(ticket_id: int, body: TicketUpdate, user=Depends(require("admin", "staff", module="orders")), db: Session = Depends(session, scope="function")):
     obj = get(db, Ticket, ticket_id)
     transitions = {"open": ["processing", "need_information"], "processing": ["need_information", "resolved"], "need_information": ["processing", "resolved"], "resolved": ["closed", "processing"], "closed": []}
     expect(body.status in transitions[obj.status], "不允许的售后状态迁移", 409)
@@ -161,7 +134,7 @@ class TicketSupplement(BaseModel):
 
 
 @router.post("/tickets/{ticket_id}/supplement")
-def supplement(ticket_id: int, body: TicketSupplement, user=Depends(require("customer")), db: Session = Depends(session)):
+def supplement(ticket_id: int, body: TicketSupplement, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
     obj = get(db, Ticket, ticket_id); expect(obj.user_id == user.id, "无权操作", 403)
     expect(obj.status == "need_information", "当前不需要补充资料", 409)
     owned_media(db, user, body.media_ids, ["ticket"])
@@ -171,18 +144,18 @@ def supplement(ticket_id: int, body: TicketSupplement, user=Depends(require("cus
 
 
 @router.get("/notifications")
-def notifications(user=Depends(current_user), db: Session = Depends(session)):
+def notifications(user=Depends(current_user), db: Session = Depends(session, scope="function")):
     return [view(n) for n in db.query(Notification).filter_by(user_id=user.id).order_by(Notification.id.desc()).limit(100)]
 
 
 @router.post("/notifications/{notification_id}/read")
-def read_notification(notification_id: int, user=Depends(current_user), db: Session = Depends(session)):
+def read_notification(notification_id: int, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     obj = get(db, Notification, notification_id); expect(obj.user_id == user.id, "无权操作", 403); obj.read = True
     return {"read": True}
 
 
 @router.get("/settings")
-def settings(db: Session = Depends(session)):
+def settings(db: Session = Depends(session, scope="function")):
     return {x.key: x.value for x in db.query(Setting)}
 
 
@@ -204,7 +177,7 @@ class SettingsIn(BaseModel):
 
 
 @router.put("/settings")
-def save_settings(body: SettingsIn, user=Depends(require("admin", "staff", module="operations")), db: Session = Depends(session)):
+def save_settings(body: SettingsIn, user=Depends(require("admin", "staff", module="operations")), db: Session = Depends(session, scope="function")):
     for banner in body.customer_banners + body.merchant_banners:
         expect(not banner.link or banner.link.startswith("/product/"), "轮播链接仅支持站内商品详情")
     for key, rows in body.model_dump().items():
@@ -216,13 +189,13 @@ def save_settings(body: SettingsIn, user=Depends(require("admin", "staff", modul
 
 
 @router.get("/admin/dashboard")
-def dashboard(user=Depends(require("admin", "staff", module="reports")), db: Session = Depends(session)):
+def dashboard(user=Depends(require("admin", "staff", module="reports")), db: Session = Depends(session, scope="function")):
     rows = db.query(Order).all()
     return {"products": db.query(Product).filter_by(status="active").count(), "orders": len(rows), "confirmed_sales": sum(x.total for x in rows if x.status not in ["cancelled", "awaiting_confirmation"]), "pending_quotes": db.query(Quote).filter_by(status="pending", deleted=False).count(), "open_tickets": db.query(Ticket).filter(Ticket.status.in_(["open", "processing", "need_information"])).count(), "searches": db.query(SearchLog).count(), "no_result_searches": sum(not x.results for x in db.query(SearchLog)), "order_statuses": {s: sum(x.status == s for x in rows) for s in ["awaiting_confirmation", "confirmed", "fulfilling", "completed", "cancelled"]}}
 
 
 @router.get("/admin/exceptions")
-def exceptions(user=Depends(require("admin", "staff", module="reports")), db: Session = Depends(session)):
+def exceptions(user=Depends(require("admin", "staff", module="reports")), db: Session = Depends(session, scope="function")):
     result = []
     for p in db.query(Procurement).filter_by(status="exception"): result.append({"kind": "procurement", "id": p.id, "message": f"订单 {p.order_id} 采购无可行方案", "owner": "采购员", "status": p.status, "created_at": p.planned_at})
     for t in db.query(Ticket).filter(Ticket.status.in_(["open", "need_information"])): result.append({"kind": "ticket", "id": t.id, "message": t.description, "owner": "客服", "status": t.status, "created_at": t.created_at})
@@ -235,10 +208,10 @@ def exceptions(user=Depends(require("admin", "staff", module="reports")), db: Se
 
 
 @router.get("/admin/audits")
-def audits(user=Depends(require("admin", "staff", module="reports")), db: Session = Depends(session)):
+def audits(user=Depends(require("admin", "staff", module="reports")), db: Session = Depends(session, scope="function")):
     return [view(x) for x in db.query(Audit).order_by(Audit.id.desc()).limit(200)]
 
 
 @router.get("/admin/search-logs")
-def search_logs(user=Depends(require("admin", "staff", module="reports")), db: Session = Depends(session)):
+def search_logs(user=Depends(require("admin", "staff", module="reports")), db: Session = Depends(session, scope="function")):
     return [view(x) for x in db.query(SearchLog).order_by(SearchLog.id.desc()).limit(100)]

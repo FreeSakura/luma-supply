@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 from .db import Base, engine, ROOT
-from . import accounts, catalog, media, orders, operations, search
+from . import accounts, catalog, media, orders, operations, search, inquiries
 
 
 @asynccontextmanager
@@ -30,8 +30,8 @@ async def lifespan(app):
         except asyncio.CancelledError: pass
 
 
-app = FastAPI(title="LumaSupply API", version="1.3.0", description="灯具商城、SKU 多模态检索与采购协同。金额单位为分。", lifespan=lifespan)
-for module in [accounts, catalog, media, orders, operations, search]: app.include_router(module.router)
+app = FastAPI(title="LumaSupply API", version="1.4.0", description="灯具商城、SKU 多模态检索与采购协同。金额单位为分。", lifespan=lifespan)
+for module in [accounts, catalog, media, orders, operations, search, inquiries]: app.include_router(module.router)
 
 
 @app.middleware("http")
@@ -50,7 +50,7 @@ async def integrity(request, exc):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": "1.3.0", "environment": os.getenv("APP_ENV", "development"), "integrations": {"aliyun": bool(os.getenv("ALIYUN_IMAGESEARCH_INSTANCE") and os.getenv("ALIYUN_ACCESS_KEY_ID")), "wechat": bool(os.getenv("WECHAT_APP_ID") and os.getenv("WECHAT_APP_SECRET")), "sms": bool(os.getenv("SMS_ENDPOINT")), "encoder": os.getenv("IMAGE_ENCODER", "handcrafted")}}
+    return {"status": "ok", "version": "1.4.0", "environment": os.getenv("APP_ENV", "development"), "integrations": {"aliyun": bool(os.getenv("ALIYUN_IMAGESEARCH_INSTANCE") and os.getenv("ALIYUN_ACCESS_KEY_ID")), "wechat": bool(os.getenv("WECHAT_APP_ID") and os.getenv("WECHAT_APP_SECRET")), "sms": bool(os.getenv("SMS_ENDPOINT")), "encoder": os.getenv("IMAGE_ENCODER", "handcrafted")}}
 
 
 def mount_frontend():

@@ -27,7 +27,7 @@ def password_valid(value: str, stored: str):
     return secrets.compare_digest(candidate, key)
 
 
-def current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer), db: Session = Depends(session)):
+def current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer), db: Session = Depends(session, scope="function")):
     if not credentials:
         raise HTTPException(401, "请先登录 / Sign in required")
     login = db.get(LoginSession, digest(credentials.credentials))

@@ -51,7 +51,7 @@ def verify_code(db, phone, code):
 
 
 @router.post("/auth/code")
-def send_code(body: PhoneIn, request: Request, db: Session = Depends(session)):
+def send_code(body: PhoneIn, request: Request, db: Session = Depends(session, scope="function")):
     previous = db.get(Verification, body.phone)
     expect(not previous or now() - previous.sent_at >= timedelta(seconds=60), "请在 60 秒后重新发送", 429)
     code = f"{secrets.randbelow(1000000):06d}"
@@ -67,7 +67,7 @@ def send_code(body: PhoneIn, request: Request, db: Session = Depends(session)):
 
 
 @router.post("/auth/register", status_code=201)
-def register(body: RegisterIn, db: Session = Depends(session)):
+def register(body: RegisterIn, db: Session = Depends(session, scope="function")):
     expect(body.agreement, "请阅读并同意注册协议与隐私说明")
     expect(not db.query(User).filter((User.username == body.username) | (User.phone == body.phone)).first(), "用户名或手机号已存在", 409)
     verify_code(db, body.phone, body.code)
@@ -80,14 +80,14 @@ def register(body: RegisterIn, db: Session = Depends(session)):
 
 
 @router.post("/auth/login")
-def login(body: LoginIn, db: Session = Depends(session)):
+def login(body: LoginIn, db: Session = Depends(session, scope="function")):
     user = db.query(User).filter((User.username == body.username) | (User.phone == body.username)).first()
     expect(user and user.active and password_valid(body.password, user.password_hash), "账户或密码不正确", 401)
     return issue_session(db, user)
 
 
 @router.post("/auth/login-code")
-def login_code(body: CodeLogin, db: Session = Depends(session)):
+def login_code(body: CodeLogin, db: Session = Depends(session, scope="function")):
     verify_code(db, body.phone, body.code)
     user = db.query(User).filter_by(phone=body.phone, active=True).first()
     expect(user, "请先注册", 404)
@@ -95,7 +95,7 @@ def login_code(body: CodeLogin, db: Session = Depends(session)):
 
 
 @router.post("/auth/reset")
-def reset(body: ResetIn, db: Session = Depends(session)):
+def reset(body: ResetIn, db: Session = Depends(session, scope="function")):
     verify_code(db, body.phone, body.code)
     user = db.query(User).filter_by(phone=body.phone, active=True).first()
     expect(user, "账户不存在", 404)
@@ -110,7 +110,7 @@ class PasswordIn(BaseModel):
 
 
 @router.post("/auth/password")
-def change_password(body: PasswordIn, user=Depends(current_user), db: Session = Depends(session)):
+def change_password(body: PasswordIn, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     expect(password_valid(body.old_password, user.password_hash), "原密码错误")
     user.password_hash = password_hash(body.new_password)
     db.query(LoginSession).filter_by(user_id=user.id).delete()
@@ -118,7 +118,7 @@ def change_password(body: PasswordIn, user=Depends(current_user), db: Session = 
 
 
 @router.post("/auth/logout")
-def logout(request: Request, user=Depends(current_user), db: Session = Depends(session)):
+def logout(request: Request, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     token = request.headers.get("authorization", "").removeprefix("Bearer ")
     db.query(LoginSession).filter_by(token_hash=digest(token)).delete()
     return {"logged_out": True}
@@ -135,7 +135,7 @@ class ProfileIn(BaseModel):
 
 
 @router.patch("/me")
-def profile(body: ProfileIn, user=Depends(current_user), db: Session = Depends(session)):
+def profile(body: ProfileIn, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     expect(not db.query(User).filter(User.username == body.username, User.id != user.id).first(), "用户名已存在", 409)
     user.username, user.name = body.username, body.name
     return user_view(user)
@@ -148,18 +148,18 @@ class AddressIn(BaseModel):
 
 
 @router.get("/addresses")
-def addresses(user=Depends(current_user), db: Session = Depends(session)):
+def addresses(user=Depends(current_user), db: Session = Depends(session, scope="function")):
     return [view(x) for x in db.query(Address).filter_by(user_id=user.id)]
 
 
 @router.post("/addresses", status_code=201)
-def add_address(body: AddressIn, user=Depends(current_user), db: Session = Depends(session)):
+def add_address(body: AddressIn, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     obj = Address(user_id=user.id, **body.model_dump()); db.add(obj); db.flush()
     return view(obj)
 
 
 @router.delete("/addresses/{address_id}")
-def delete_address(address_id: int, user=Depends(current_user), db: Session = Depends(session)):
+def delete_address(address_id: int, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     obj = get(db, Address, address_id); expect(obj.user_id == user.id, "无权操作", 403); db.delete(obj)
     return {"deleted": True}
 
@@ -173,12 +173,12 @@ class MerchantIn(BaseModel):
 
 
 @router.get("/merchant/profile")
-def merchant_profile(user=Depends(require("merchant")), db: Session = Depends(session)):
+def merchant_profile(user=Depends(require("merchant")), db: Session = Depends(session, scope="function")):
     return view(db.query(Merchant).filter_by(user_id=user.id).one())
 
 
 @router.put("/merchant/profile")
-def merchant_submit(body: MerchantIn, user=Depends(require("merchant")), db: Session = Depends(session)):
+def merchant_submit(body: MerchantIn, user=Depends(require("merchant")), db: Session = Depends(session, scope="function")):
     from .media import owned_media
     owned_media(db, user, [body.license_media_id], purposes=["license"])
     obj = db.query(Merchant).filter_by(user_id=user.id).one()
@@ -190,7 +190,7 @@ def merchant_submit(body: MerchantIn, user=Depends(require("merchant")), db: Ses
 
 
 @router.get("/admin/merchants")
-def merchants(q: str = "", user=Depends(require("admin", "staff", module="merchants")), db: Session = Depends(session)):
+def merchants(q: str = "", user=Depends(require("admin", "staff", module="merchants")), db: Session = Depends(session, scope="function")):
     rows = db.query(Merchant).filter((Merchant.shop_name.contains(q)) | (Merchant.legal_name.contains(q)) | (Merchant.phone.contains(q)))
     return [view(x) for x in rows]
 
@@ -201,7 +201,7 @@ class DecisionIn(BaseModel):
 
 
 @router.post("/admin/merchants/{merchant_id}/review")
-def merchant_review(merchant_id: int, body: DecisionIn, user=Depends(require("admin", "staff", module="merchants")), db: Session = Depends(session)):
+def merchant_review(merchant_id: int, body: DecisionIn, user=Depends(require("admin", "staff", module="merchants")), db: Session = Depends(session, scope="function")):
     obj = get(db, Merchant, merchant_id)
     expect(body.approve or body.reason.strip(), "驳回需要填写原因")
     expect(obj.status == "pending", "该认证已处理", 409)
@@ -212,7 +212,7 @@ def merchant_review(merchant_id: int, body: DecisionIn, user=Depends(require("ad
 
 
 @router.post("/admin/merchants/{merchant_id}/disable")
-def disable_merchant(merchant_id: int, user=Depends(require("admin", "staff", module="merchants")), db: Session = Depends(session)):
+def disable_merchant(merchant_id: int, user=Depends(require("admin", "staff", module="merchants")), db: Session = Depends(session, scope="function")):
     obj = get(db, Merchant, merchant_id); obj.status = "disabled"
     get(db, User, obj.user_id).active = False
     db.query(Quote).filter_by(merchant_id=obj.id).update({"active": False, "deleted": True})
@@ -221,7 +221,7 @@ def disable_merchant(merchant_id: int, user=Depends(require("admin", "staff", mo
 
 
 @router.get("/admin/users")
-def users(q: str = "", role: str = "", user=Depends(require("admin", "staff", module="users")), db: Session = Depends(session)):
+def users(q: str = "", role: str = "", user=Depends(require("admin", "staff", module="users")), db: Session = Depends(session, scope="function")):
     rows = db.query(User).filter((User.username.contains(q)) | (User.name.contains(q)))
     if role: rows = rows.filter_by(role=role)
     return [user_view(x) for x in rows]
@@ -235,7 +235,7 @@ class StaffIn(BaseModel):
 
 
 @router.post("/admin/staff", status_code=201)
-def create_staff(body: StaffIn, user=Depends(require("admin")), db: Session = Depends(session)):
+def create_staff(body: StaffIn, user=Depends(require("admin")), db: Session = Depends(session, scope="function")):
     expect(set(body.permissions) <= set(MODULES), "未知权限模块")
     expect(not db.query(User).filter_by(username=body.username).first(), "用户名已存在", 409)
     obj = User(username=body.username, name=body.name, password_hash=password_hash(body.password), role="staff", permissions=body.permissions)
@@ -250,7 +250,7 @@ class StaffEdit(BaseModel):
 
 
 @router.patch("/admin/staff/{user_id}")
-def update_staff(user_id: int, body: StaffEdit, user=Depends(require("admin")), db: Session = Depends(session)):
+def update_staff(user_id: int, body: StaffEdit, user=Depends(require("admin")), db: Session = Depends(session, scope="function")):
     obj = get(db, User, user_id); expect(obj.role == "staff", "只能修改员工账户")
     expect(set(body.permissions) <= set(MODULES), "未知权限模块")
     for k, v in body.model_dump().items(): setattr(obj, k, v)
@@ -263,7 +263,7 @@ class WechatIn(BaseModel):
 
 
 @router.post("/auth/wechat")
-def wechat(body: WechatIn, db: Session = Depends(session)):
+def wechat(body: WechatIn, db: Session = Depends(session, scope="function")):
     app_id, secret = os.getenv("WECHAT_APP_ID"), os.getenv("WECHAT_APP_SECRET")
     expect(app_id and secret, "微信登录未配置 AppID / Secret", 503)
     with httpx.Client(timeout=10) as client:

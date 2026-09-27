@@ -26,7 +26,7 @@ def owned_media(db, user, ids, purposes=None):
 
 
 @router.get("/public-media/{media_id}")
-def public_media(media_id: str, db: Session = Depends(session)):
+def public_media(media_id: str, db: Session = Depends(session, scope="function")):
     from .models import SKU, Product, Setting, Review
     m = get(db, Media, media_id)
     allowed = False
@@ -40,7 +40,7 @@ def public_media(media_id: str, db: Session = Depends(session)):
 
 
 @router.post("/media", status_code=201)
-async def upload(file: UploadFile = File(...), purpose: Literal["product", "query", "license", "proof", "review", "ticket", "banner", "support"] = Form(...), user=Depends(current_user), db: Session = Depends(session)):
+async def upload(file: UploadFile = File(...), purpose: Literal["product", "query", "license", "proof", "review", "ticket", "banner", "support"] = Form(...), user=Depends(current_user), db: Session = Depends(session, scope="function")):
     if purpose in ["banner", "support"]:
         expect(user.role == "admin" or user.role == "staff" and "operations" in user.permissions, "无权上传运营素材", 403)
     if purpose == "product": expect(user.role in ["admin", "staff", "merchant"], "无权上传商品素材", 403)
@@ -64,7 +64,7 @@ async def upload(file: UploadFile = File(...), purpose: Literal["product", "quer
 
 
 @router.get("/media/{media_id}")
-def media_file(media_id: str, db: Session = Depends(session), user: User = Depends(current_user)):
+def media_file(media_id: str, db: Session = Depends(session, scope="function"), user: User = Depends(current_user)):
     m = get(db, Media, media_id)
     permitted = m.owner_id == user.id or user.role == "admin"
     if user.role == "staff":

@@ -1,6 +1,6 @@
 from datetime import date
 from pydantic import BaseModel, Field, field_validator
-from .models import Wishlist, SKU, Product, InquiryBrief, now
+from .models import Wishlist, SKU, Product, Inquiry, InquiryBrief, InquiryEvent, now
 from .catalog import sku_view
 from .common import get, expect, view
 
@@ -73,3 +73,23 @@ def inquiry_view(db, inquiry, briefs=None):
     brief = briefs.get(inquiry.id) if briefs is not None else db.get(InquiryBrief, inquiry.id)
     return {**view(inquiry), 'requirements': brief.requirements if brief else {},
             'estimate': brief.estimate if brief else None}
+
+
+def accessible_inquiry(db, user, inquiry_id):
+    inquiry = get(db, Inquiry, inquiry_id)
+    permitted = (user.role == 'customer' and inquiry.user_id == user.id
+                 or user.role == 'admin'
+                 or user.role == 'staff' and 'orders' in user.permissions)
+    expect(permitted, '无权访问此询价', 403)
+    return inquiry
+
+
+def add_inquiry_event(db, inquiry, user, action, message=''):
+    db.add(InquiryEvent(inquiry_id=inquiry.id, actor_id=user.id, actor_name=user.name,
+                        actor_role=user.role, action=action, message=message))
+
+
+def inquiry_detail(db, inquiry):
+    history = db.query(InquiryEvent).filter_by(inquiry_id=inquiry.id).order_by(InquiryEvent.id).all()
+    return {**inquiry_view(db, inquiry),
+            'history': [view(event, exclude=('actor_id',)) for event in history]}

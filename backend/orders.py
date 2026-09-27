@@ -13,12 +13,13 @@ from .common import get, expect, view
 from .catalog import sku_view, valid_quotes
 from .media import owned_media
 from algorithms.procurement import solve, greedy
+from .inquiry_service import add_inquiry_event
 
 router = APIRouter(prefix="/api")
 
 
 @router.get("/order-customers")
-def order_customers(user=Depends(require("admin", "staff", module="orders")), db: Session = Depends(session)):
+def order_customers(user=Depends(require("admin", "staff", module="orders")), db: Session = Depends(session, scope="function")):
     return [{"id": u.id, "username": u.username, "name": u.name} for u in db.query(User).filter_by(role="customer", active=True)]
 
 
@@ -59,7 +60,7 @@ class OrderIn(BaseModel):
 
 
 @router.post("/orders", status_code=201)
-def create_order(body: OrderIn, user=Depends(require("admin", "staff", module="orders")), db: Session = Depends(session)):
+def create_order(body: OrderIn, user=Depends(require("admin", "staff", module="orders")), db: Session = Depends(session, scope="function")):
     signature = digest(json.dumps(body.model_dump(), sort_keys=True))
     old = db.query(Order).filter_by(idempotency_key=body.idempotency_key).first()
     if old:
@@ -80,15 +81,19 @@ def create_order(body: OrderIn, user=Depends(require("admin", "staff", module="o
     db.add(Procurement(order_id=obj.id)); db.flush()
     if body.inquiry_id:
         inquiry = get(db, Inquiry, body.inquiry_id)
-        expect(inquiry.user_id == customer.id and inquiry.status == "open", "询价单不可转换", 409)
-        inquiry.status, inquiry.order_id = "ordered", obj.id
+        claimed = db.execute(update(Inquiry).where(
+            Inquiry.id == inquiry.id, Inquiry.user_id == customer.id,
+            Inquiry.status == 'open', Inquiry.order_id.is_(None)
+        ).values(status='ordered', order_id=obj.id))
+        expect(claimed.rowcount == 1, "询价已转单、撤回或关闭，不能再次转换", 409)
+        add_inquiry_event(db, inquiry, user, 'ordered', f'已创建销售订单 {obj.number}')
     notify(db, customer.id, f"订单 {obj.number} 请确认收货信息", "orders")
     audit(db, user, "order.create", obj.id, {"total": obj.total})
     return order_view(db, obj)
 
 
 @router.get("/orders")
-def orders(q: str = "", user=Depends(current_user), db: Session = Depends(session)):
+def orders(q: str = "", user=Depends(current_user), db: Session = Depends(session, scope="function")):
     rows = db.query(Order)
     if user.role == "customer": rows = rows.filter_by(customer_id=user.id)
     else: expect(user.role == "admin" or user.role == "staff" and "orders" in user.permissions, "无订单权限", 403)
@@ -98,7 +103,7 @@ def orders(q: str = "", user=Depends(current_user), db: Session = Depends(sessio
 
 
 @router.get("/orders/{order_id}")
-def detail(order_id: int, user=Depends(current_user), db: Session = Depends(session)):
+def detail(order_id: int, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     obj = accessible_order(db, user, order_id)
     if user.role in ["admin", "staff"]: audit(db, user, "order.address_read", obj.id)
     return order_view(db, obj, detail=True)
@@ -111,7 +116,7 @@ class ConfirmIn(BaseModel):
 
 
 @router.post("/orders/{order_id}/confirm")
-def confirm(order_id: int, body: ConfirmIn, user=Depends(require("customer")), db: Session = Depends(session)):
+def confirm(order_id: int, body: ConfirmIn, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
     obj = accessible_order(db, user, order_id)
     expect(obj.status == "awaiting_confirmation", "订单当前不可确认", 409)
     snapshot = None
@@ -130,7 +135,7 @@ class VersionIn(BaseModel):
 
 
 @router.post("/orders/{order_id}/cancel")
-def cancel(order_id: int, body: VersionIn, user=Depends(current_user), db: Session = Depends(session)):
+def cancel(order_id: int, body: VersionIn, user=Depends(current_user), db: Session = Depends(session, scope="function")):
     obj = accessible_order(db, user, order_id)
     p = db.query(Procurement).filter_by(order_id=obj.id).one()
     expect(obj.status in ["awaiting_confirmation", "confirmed"] and p.status in ["draft", "planned", "exception"], "采购执行后请走售后流程", 409)
@@ -148,7 +153,7 @@ class PlanIn(BaseModel):
 
 
 @router.get("/procurements")
-def procurements(user=Depends(require("admin", "staff", module="procurement")), db: Session = Depends(session)):
+def procurements(user=Depends(require("admin", "staff", module="procurement")), db: Session = Depends(session, scope="function")):
     return [{**view(p), "order_number": get(db, Order, p.order_id).number} for p in db.query(Procurement).order_by(Procurement.id.desc())]
 
 
@@ -164,7 +169,7 @@ def procurement_inputs(db, obj):
 
 
 @router.post("/orders/{order_id}/procurement/plan")
-def plan(order_id: int, body: PlanIn, user=Depends(require("admin", "staff", module="procurement")), db: Session = Depends(session)):
+def plan(order_id: int, body: PlanIn, user=Depends(require("admin", "staff", module="procurement")), db: Session = Depends(session, scope="function")):
     obj = get(db, Order, order_id)
     expect(obj.status == "confirmed", "请先让客户确认订单", 409)
     procurement = db.query(Procurement).filter_by(order_id=obj.id).one()
@@ -180,7 +185,7 @@ def plan(order_id: int, body: PlanIn, user=Depends(require("admin", "staff", mod
 
 
 @router.post("/orders/{order_id}/procurement/confirm")
-def confirm_plan(order_id: int, body: VersionIn, user=Depends(require("admin", "staff", module="procurement")), db: Session = Depends(session)):
+def confirm_plan(order_id: int, body: VersionIn, user=Depends(require("admin", "staff", module="procurement")), db: Session = Depends(session, scope="function")):
     obj = get(db, Order, order_id); p = db.query(Procurement).filter_by(order_id=obj.id).one()
     expect(obj.status == "confirmed" and p.status == "planned" and p.version == body.version, "采购方案已变化或不可确认", 409)
     expect(p.planned_at > now() - timedelta(minutes=30), "方案超过 30 分钟，请重新计算", 409)
@@ -205,7 +210,7 @@ class ProofIn(BaseModel):
 
 
 @router.post("/orders/{order_id}/procurement/complete")
-def procurement_complete(order_id: int, body: ProofIn, user=Depends(require("admin", "staff", module="procurement")), db: Session = Depends(session)):
+def procurement_complete(order_id: int, body: ProofIn, user=Depends(require("admin", "staff", module="procurement")), db: Session = Depends(session, scope="function")):
     p = db.query(Procurement).filter_by(order_id=order_id).first(); expect(p, "采购记录不存在", 404)
     expect(p.status == "processing", "当前采购不可完成", 409)
     owned_media(db, user, body.media_ids, ["proof"])
@@ -228,7 +233,7 @@ class ShipmentIn(BaseModel):
 
 
 @router.post("/orders/{order_id}/shipments", status_code=201)
-def ship(order_id: int, body: ShipmentIn, user=Depends(require("admin", "staff", module="orders")), db: Session = Depends(session)):
+def ship(order_id: int, body: ShipmentIn, user=Depends(require("admin", "staff", module="orders")), db: Session = Depends(session, scope="function")):
     obj = accessible_order(db, user, order_id)
     old = db.query(Shipment).filter_by(idempotency_key=body.idempotency_key).first()
     if old:
@@ -250,7 +255,7 @@ def ship(order_id: int, body: ShipmentIn, user=Depends(require("admin", "staff",
 
 
 @router.post("/orders/{order_id}/receive")
-def receive(order_id: int, user=Depends(require("customer")), db: Session = Depends(session)):
+def receive(order_id: int, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
     obj = accessible_order(db, user, order_id)
     expect(obj.status == "fulfilling", "当前订单不可签收", 409)
     lines = db.query(OrderLine).filter_by(order_id=obj.id).all()

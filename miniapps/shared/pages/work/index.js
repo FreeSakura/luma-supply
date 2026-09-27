@@ -1,11 +1,11 @@
 const app=()=>getApp()
 Page({
- data:{role:'customer',lang:'zh',tab:'wishlist',tabs:[],rows:[],modal:'',form:{},order:null,addresses:[],detail:null,selectedIds:[],roomOptions:['全部房间 / All rooms'],roomIndex:0,selectedAmount:'¥0.00',selectedQuantity:0,inquiryPreview:null,submitting:false},
+ data:{role:'customer',lang:'zh',tab:'wishlist',tabs:[],rows:[],modal:'',form:{},order:null,addresses:[],detail:null,selectedIds:[],roomOptions:['全部房间 / All rooms'],roomIndex:0,selectedAmount:'¥0.00',selectedQuantity:0,inquiryPreview:null,submitting:false,inquiryStatusIndex:0,inquiryStatusOptions:['全部 / All','待处理 / Open','已转订单 / Ordered','已撤回 / Withdrawn','已关闭 / Closed'],inquiryStatusValues:['','open','ordered','withdrawn','closed']},
  async onShow(){const role=app().globalData.role;const tabs=role==='merchant'?[{key:'quotes',name:'我的报价 / Offers'},{key:'catalog',name:'我的商品 / Products'}]:[{key:'wishlist',name:'选购清单 / Lists'},{key:'inquiries',name:'询价 / Inquiries'},{key:'orders',name:'订单 / Orders'},{key:'tickets',name:'售后 / Service'}];this.setData({role,lang:app().globalData.lang,tabs,tab:tabs.some(x=>x.key===this.data.tab)?this.data.tab:tabs[0].key});if(app().requireLogin())await this.load()},
  async load(){
-  const route=this.data.tab==='catalog'?'/admin/catalog':'/'+this.data.tab
+  const route=this.data.tab==='catalog'?'/admin/catalog':'/'+this.data.tab+(this.data.tab==='inquiries'&&this.data.inquiryStatusIndex?'?status='+this.data.inquiryStatusValues[this.data.inquiryStatusIndex]:'')
   let rows=await app().request(route)
-  rows=rows.filter(Boolean).map(x=>({...x,priceText:app().money(x.total??x.price??x.sku?.price),picture:x.sku&&x.sku.images[0]?app().picture(x.sku.images[0]):x.skus&&x.skus[0].images[0]?app().picture(x.skus[0].images[0]):'',summary:x.items?x.items.map(i=>(i.snapshot?.product_name||'SKU '+i.sku_id)+' '+(i.snapshot?.code||'')+' × '+i.quantity+' / '+i.room).join(' / '):'',estimateText:x.estimate?app().money(x.estimate.goods_amount):'',budgetText:x.requirements?.budget?app().money(x.requirements.budget):''}))
+  rows=rows.filter(Boolean).map(x=>({...x,statusText:({open:'待处理 / Open',ordered:'已转订单 / Ordered',withdrawn:'已撤回 / Withdrawn',closed:'已关闭 / Closed'})[x.status]||x.status,priceText:app().money(x.total??x.price??x.sku?.price),picture:x.sku&&x.sku.images[0]?app().picture(x.sku.images[0]):x.skus&&x.skus[0].images[0]?app().picture(x.skus[0].images[0]):'',summary:x.items?x.items.map(i=>(i.snapshot?.product_name||'SKU '+i.sku_id)+' '+(i.snapshot?.code||'')+' × '+i.quantity+' / '+i.room).join(' / '):'',estimateText:x.estimate?app().money(x.estimate.goods_amount):'',budgetText:x.requirements?.budget?app().money(x.requirements.budget):''}))
   this.setData({rows})
   if(this.data.tab==='wishlist'){
    this.setData({roomOptions:['全部房间 / All rooms',...new Set(rows.map(x=>x.room))]})
@@ -20,6 +20,13 @@ Page({
  async previewInquiry(){if(this.data.submitting)return;this.setData({submitting:true});try{const p=await app().request('/inquiries/preview',this.inquiryPayload());p.amountText=app().money(p.estimate.goods_amount);p.gapText=app().money(p.estimate.budget_gap);p.estimate.rooms=p.estimate.rooms.map(r=>({...r,amountText:app().money(r.amount)}));this.setData({inquiryPreview:p})}finally{this.setData({submitting:false})}},
  async submitInquiry(){if(this.data.submitting)return;this.setData({submitting:true});try{await app().request('/inquiries',this.inquiryPayload());this.setData({modal:'',tab:'inquiries'});await this.load()}finally{this.setData({submitting:false})}},
 
+ inquiryStatus(e){this.setData({inquiryStatusIndex:Number(e.detail.value)});this.load()},
+ async openInquiry(e){const detail=await app().request('/inquiries/'+e.currentTarget.dataset.id);this.setData({detail,modal:'inquiry-detail',form:{reply:'',reason:'',withdraw:false}})},
+ async inquiryReply(){if(this.data.submitting)return;this.setData({submitting:true});try{const detail=await app().request('/inquiries/'+this.data.detail.id+'/messages',{message:this.data.form.reply});this.setData({detail,'form.reply':''});await this.load()}finally{this.setData({submitting:false})}},
+ beginWithdrawal(){this.setData({'form.withdraw':true})},
+ cancelWithdrawal(){this.setData({'form.withdraw':false})},
+ async withdrawInquiry(){if(this.data.submitting)return;this.setData({submitting:true});try{const detail=await app().request('/inquiries/'+this.data.detail.id+'/withdraw',{message:this.data.form.reason});this.setData({detail,'form.withdraw':false});await this.load()}finally{this.setData({submitting:false})}},
+ async linkedOrder(){await this.openOrder({currentTarget:{dataset:{id:this.data.detail.order_id}}})},
  async tab(e){this.setData({tab:e.currentTarget.dataset.key});await this.load()},
  input(e){this.setData({['form.'+e.currentTarget.dataset.key]:e.detail.value,...(this.data.modal==='inquiry'?{inquiryPreview:null}:{})})},
  selectAddress(e){const index=Number(e.detail.value);this.setData({'form.address_id':this.data.addresses[index].id,'form.address_label':this.data.addresses[index].detail})},

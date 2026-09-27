@@ -53,7 +53,7 @@ def product_view(db, product, internal=False, selected_sku=None):
 
 
 @router.get("/catalog/categories")
-def categories(db: Session = Depends(session)):
+def categories(db: Session = Depends(session, scope="function")):
     return [x[0] for x in db.query(Product.category).filter_by(status="active").distinct().order_by(Product.category)]
 
 
@@ -87,7 +87,7 @@ def preload_product_skus(db, product_ids):
 
 
 @router.get("/catalog/products")
-def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), db: Session = Depends(session)):
+def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), db: Session = Depends(session, scope="function")):
     q = q.strip()
     rows = catalog_query(db, q, category, cct_k)
     page = rows.order_by(Product.id.desc()).offset(offset).limit(limit).all()
@@ -106,7 +106,7 @@ def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=2
 
 
 @router.get("/catalog/page")
-def catalog_page(q: str = "", category: str = "", limit: int = Query(24, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), db: Session = Depends(session)):
+def catalog_page(q: str = "", category: str = "", limit: int = Query(24, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), db: Session = Depends(session, scope="function")):
     total = catalog_query(db, q, category, cct_k).count()
     items = products(q=q, category=category, limit=limit, offset=offset, cct_k=cct_k, db=db)
     next_offset = offset + len(items)
@@ -115,7 +115,7 @@ def catalog_page(q: str = "", category: str = "", limit: int = Query(24, ge=1, l
 
 
 @router.get('/catalog/lighting-options')
-def lighting_options(db: Session = Depends(session)):
+def lighting_options(db: Session = Depends(session, scope="function")):
     attributes = db.query(SKU.attributes).join(Product).filter(SKU.status == 'active', Product.status == 'active')
     values = {row[0].get('cct_k') for row in attributes if type(row[0].get('cct_k')) is int and 1000 <= row[0]['cct_k'] <= 10000}
     return {'cct_k': sorted(values)}
@@ -142,7 +142,7 @@ def search_products(db, sku_ids):
 
 
 @router.get("/catalog/products/{product_id}")
-def product_detail(product_id: int, sku: int | None = None, db: Session = Depends(session)):
+def product_detail(product_id: int, sku: int | None = None, db: Session = Depends(session, scope="function")):
     obj = get(db, Product, product_id); expect(obj.status == "active", "商品未上架", 404)
     result = product_view(db, obj, selected_sku=sku)
     expect(result, "商品无可售规格", 404)
@@ -188,7 +188,7 @@ def queue_index(db, reason):
 
 
 @router.post("/catalog/products", status_code=201)
-def create_product(body: ProductIn, user=Depends(require("admin", "staff", "merchant", module="catalog")), db: Session = Depends(session)):
+def create_product(body: ProductIn, user=Depends(require("admin", "staff", "merchant", module="catalog")), db: Session = Depends(session, scope="function")):
     if user.role == "merchant": merchant_for(db, user)
     expect(len({s.code for s in body.skus}) == len(body.skus), "SKU 编码重复")
     expect(not db.query(SKU).filter(SKU.code.in_([s.code for s in body.skus])).first(), "SKU 编码已存在", 409)
@@ -212,7 +212,7 @@ class ProductEdit(BaseModel):
 
 
 @router.patch("/catalog/products/{product_id}")
-def edit_product(product_id: int, body: ProductEdit, user=Depends(require("admin", "staff", "merchant", module="catalog")), db: Session = Depends(session)):
+def edit_product(product_id: int, body: ProductEdit, user=Depends(require("admin", "staff", "merchant", module="catalog")), db: Session = Depends(session, scope="function")):
     obj = get(db, Product, product_id)
     if user.role == "merchant":
         merchant_for(db, user); expect(obj.owner_id == user.id, "只能编辑自己提交的商品", 403)
@@ -225,7 +225,7 @@ def edit_product(product_id: int, body: ProductEdit, user=Depends(require("admin
 
 
 @router.post("/catalog/products/{product_id}/skus", status_code=201)
-def create_sku(product_id: int, body: SKUIn, user=Depends(require("admin", "staff", "merchant", module="catalog")), db: Session = Depends(session)):
+def create_sku(product_id: int, body: SKUIn, user=Depends(require("admin", "staff", "merchant", module="catalog")), db: Session = Depends(session, scope="function")):
     obj = get(db, Product, product_id)
     if user.role == "merchant": merchant_for(db, user)
     expect(not db.query(SKU).filter_by(code=body.code).first(), "SKU 编码已存在", 409)
@@ -238,19 +238,19 @@ def create_sku(product_id: int, body: SKUIn, user=Depends(require("admin", "staf
 
 
 @router.get("/admin/catalog")
-def admin_catalog(user=Depends(require("admin", "staff", "merchant", module="catalog")), db: Session = Depends(session)):
+def admin_catalog(user=Depends(require("admin", "staff", "merchant", module="catalog")), db: Session = Depends(session, scope="function")):
     rows = db.query(Product)
     if user.role == "merchant": rows = rows.filter_by(owner_id=user.id)
     return [product_view(db, x, True) for x in rows]
 
 
 @router.get("/admin/catalog/changes")
-def changes(user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def changes(user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     return [{**view(x), "before": view(get(db, Product, x.product_id))} for x in db.query(ProductChange).order_by(ProductChange.id.desc())]
 
 
 @router.post("/admin/catalog/changes/{change_id}/review")
-def review_change(change_id: int, body: DecisionIn, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def review_change(change_id: int, body: DecisionIn, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     obj = get(db, ProductChange, change_id); expect(obj.status == "pending", "已处理", 409)
     expect(body.approve or body.reason.strip(), "驳回需要填写原因")
     obj.status = "approved" if body.approve else "rejected"; obj.reason = body.reason
@@ -269,7 +269,7 @@ class CatalogState(BaseModel):
 
 
 @router.post("/admin/catalog/{product_id}/state")
-def product_state(product_id: int, body: CatalogState, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def product_state(product_id: int, body: CatalogState, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     obj = get(db, Product, product_id); obj.status = body.status
     if body.status == "active":
         db.query(SKU).filter_by(product_id=obj.id, status="pending").update({"status": "active"})
@@ -279,7 +279,7 @@ def product_state(product_id: int, body: CatalogState, user=Depends(require("adm
 
 
 @router.post("/admin/skus/{sku_id}/state")
-def sku_state(sku_id: int, body: CatalogState, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def sku_state(sku_id: int, body: CatalogState, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     obj = get(db, SKU, sku_id); obj.status = body.status
     queue_index(db, f"sku:{sku_id}"); audit(db, user, "sku.state", sku_id, body.model_dump())
     return sku_view(db, obj, True)
@@ -308,19 +308,19 @@ def submit_quote(db, user, body):
 
 
 @router.post("/quotes", status_code=201)
-def quote_submit(body: QuoteIn, user=Depends(require("merchant")), db: Session = Depends(session)):
+def quote_submit(body: QuoteIn, user=Depends(require("merchant")), db: Session = Depends(session, scope="function")):
     return view(submit_quote(db, user, body))
 
 
 @router.get("/quotes")
-def quotes(user=Depends(require("admin", "staff", "merchant", module="quotes")), db: Session = Depends(session)):
+def quotes(user=Depends(require("admin", "staff", "merchant", module="quotes")), db: Session = Depends(session, scope="function")):
     query = db.query(Quote)
     if user.role == "merchant": query = query.filter_by(merchant_id=db.query(Merchant).filter_by(user_id=user.id).one().id)
     return [{**view(q), "sku_code": get(db, SKU, q.sku_id).code, "shop_name": get(db, Merchant, q.merchant_id).shop_name} for q in query.order_by(Quote.id.desc())]
 
 
 @router.post("/quotes/{quote_id}/review")
-def quote_review(quote_id: int, body: DecisionIn, user=Depends(require("admin", "staff", module="quotes")), db: Session = Depends(session)):
+def quote_review(quote_id: int, body: DecisionIn, user=Depends(require("admin", "staff", module="quotes")), db: Session = Depends(session, scope="function")):
     obj = get(db, Quote, quote_id)
     expect(obj.status == "pending" and not obj.deleted, "报价已处理", 409)
     expect(body.approve or body.reason.strip(), "驳回需要填写原因")
@@ -350,7 +350,7 @@ class QuoteAction(BaseModel):
 
 
 @router.post("/quotes/{quote_id}/action")
-def quote_action(quote_id: int, body: QuoteAction, user=Depends(require("merchant")), db: Session = Depends(session)):
+def quote_action(quote_id: int, body: QuoteAction, user=Depends(require("merchant")), db: Session = Depends(session, scope="function")):
     obj = get(db, Quote, quote_id); merchant = merchant_for(db, user)
     expect(obj.merchant_id == merchant.id, "无权操作其他商家报价", 403)
     if body.action == "resubmit":
@@ -367,7 +367,7 @@ class BatchQuotes(BaseModel):
 
 
 @router.post("/quotes/import")
-def import_quotes(body: BatchQuotes, user=Depends(require("merchant")), db: Session = Depends(session)):
+def import_quotes(body: BatchQuotes, user=Depends(require("merchant")), db: Session = Depends(session, scope="function")):
     merchant_for(db, user)
     errors = []
     seen = set()
@@ -394,12 +394,12 @@ def preview_pricing(db, multiplier):
 
 
 @router.post("/admin/pricing/preview")
-def price_preview(body: PricingIn, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def price_preview(body: PricingIn, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     return preview_pricing(db, body.multiplier_bp)
 
 
 @router.post("/admin/pricing")
-def pricing(body: PricingIn, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def pricing(body: PricingIn, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     rule = PricingRule(**body.model_dump(), created_by=user.id); db.add(rule); db.flush()
     audit(db, user, "pricing.create", rule.id, body.model_dump())
     return view(rule)
@@ -411,7 +411,7 @@ class SKUPriceIn(BaseModel):
 
 
 @router.patch("/admin/skus/{sku_id}/price")
-def sku_price(sku_id: int, body: SKUPriceIn, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session)):
+def sku_price(sku_id: int, body: SKUPriceIn, user=Depends(require("admin", "staff", module="catalog")), db: Session = Depends(session, scope="function")):
     sku = get(db, SKU, sku_id)
     sku.manual_price, sku.stock_status = body.manual_price, body.stock_status
     audit(db, user, "sku.price", sku.id, body.model_dump())

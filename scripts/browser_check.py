@@ -36,7 +36,7 @@ def run():
         page.get_by_role('button',name='清单一键询价',exact=True).click()
         page.get_by_role('button',name='预览询价清单',exact=True).click()
         page.get_by_role('button',name='确认发送询价',exact=True).click()
-        expect(page.locator('.list-item').first).to_be_visible()
+        expect(page.locator('.inquiry-row').first).to_be_visible()
         checks.append('Select exact SKU, save room list, create inquiry')
         page.get_by_role('button',name='发现灯具',exact=True).click()
         page.locator('.search-main input[type=text],.search-main > input').first.fill('台灯')

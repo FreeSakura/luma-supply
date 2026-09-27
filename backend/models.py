@@ -214,6 +214,18 @@ class InquiryBrief(Base):
     estimate = Column(JSON, nullable=False)
 
 
+class InquiryEvent(Base):
+    __tablename__ = "inquiry_events"
+    id = Column(Integer, primary_key=True)
+    inquiry_id = Column(Integer, ForeignKey("inquiries.id"), nullable=False, index=True)
+    actor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    actor_name = Column(String(80), nullable=False)
+    actor_role = Column(String(20), nullable=False)
+    action = Column(String(30), nullable=False)
+    message = Column(Text, default="")
+    created_at = Column(DateTime, default=now)
+
+
 class Review(Base):
     __tablename__ = "reviews"
     __table_args__ = (UniqueConstraint("order_id", "sku_id", "user_id"),)

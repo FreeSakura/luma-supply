@@ -304,6 +304,25 @@ CREATE TABLE inquiry_briefs (
 ;
 
 
+CREATE TABLE inquiry_events (
+	id INTEGER NOT NULL AUTO_INCREMENT,
+	inquiry_id INTEGER NOT NULL,
+	actor_id INTEGER NOT NULL,
+	actor_name VARCHAR(80) NOT NULL,
+	actor_role VARCHAR(20) NOT NULL,
+	action VARCHAR(30) NOT NULL,
+	message TEXT,
+	created_at DATETIME,
+	PRIMARY KEY (id),
+	FOREIGN KEY(inquiry_id) REFERENCES inquiries (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id)
+)
+
+;
+
+CREATE INDEX ix_inquiry_events_inquiry_id ON inquiry_events (inquiry_id);
+
+
 CREATE TABLE order_lines (
 	id INTEGER NOT NULL AUTO_INCREMENT, 
 	order_id INTEGER NOT NULL, 
