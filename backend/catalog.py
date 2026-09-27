@@ -57,8 +57,7 @@ def categories(db: Session = Depends(session)):
     return [x[0] for x in db.query(Product.category).filter_by(status="active").distinct().order_by(Product.category)]
 
 
-@router.get("/catalog/products")
-def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(session)):
+def catalog_query(db, q="", category=""):
     q = q.strip()
     active_skus = db.query(SKU.id).filter(SKU.product_id == Product.id, SKU.status == "active")
     rows = db.query(Product).filter(Product.status == "active", active_skus.exists())
@@ -74,12 +73,23 @@ def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=2
         rows = rows.filter(func.lower(Product.name).contains(term, autoescape=True)
                            | func.lower(Product.title).contains(term, autoescape=True)
                            | matching_skus.exists())
+    return rows
+
+
+def preload_product_skus(db, product_ids):
+    groups = {pid: [] for pid in product_ids}
+    if groups:
+        for sku in db.query(SKU).filter(SKU.product_id.in_(groups), SKU.status == "active"):
+            groups[sku.product_id].append(sku)
+    db.info.setdefault("catalog_skus", {}).update(groups)
+
+
+@router.get("/catalog/products")
+def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(session)):
+    q = q.strip()
+    rows = catalog_query(db, q, category)
     page = rows.order_by(Product.id.desc()).offset(offset).limit(limit).all()
-    page_skus = {p.id: [] for p in page}
-    if page:
-        for sku in db.query(SKU).filter(SKU.product_id.in_(page_skus), SKU.status == "active"):
-            page_skus[sku.product_id].append(sku)
-    db.info["catalog_skus"] = page_skus
+    preload_product_skus(db, [p.id for p in page])
     results = []
     for product in page:
         result = product_view(db, product)
@@ -90,6 +100,35 @@ def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=2
             result["selected_sku_id"], result["min_price"] = selected["id"], selected["price"]
         results.append(result)
     return results
+
+
+@router.get("/catalog/page")
+def catalog_page(q: str = "", category: str = "", limit: int = Query(24, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(session)):
+    total = catalog_query(db, q, category).count()
+    items = products(q=q, category=category, limit=limit, offset=offset, db=db)
+    next_offset = offset + len(items)
+    return {"items": items, "total": total, "offset": offset, "limit": limit,
+            "next_offset": next_offset, "has_more": next_offset < total and bool(items)}
+
+
+def search_products(db, sku_ids):
+    """Resolve ranked SKU hits in batches, without depending on a client's first page."""
+    if not sku_ids: return []
+    matches = db.query(SKU, Product).join(Product, SKU.product_id == Product.id).filter(
+        SKU.id.in_(sku_ids), SKU.status == "active", Product.status == "active"
+    ).all()
+    by_sku = {sku.id: (sku, product) for sku, product in matches}
+    preload_product_skus(db, {product.id for _, product in matches})
+    product_cache = {}
+    resolved = []
+    for sku_id in sku_ids:
+        if sku_id not in by_sku: continue
+        sku, product = by_sku[sku_id]
+        if product.id not in product_cache:
+            product_cache[product.id] = product_view(db, product)
+        resolved.append({**product_cache[product.id], "selected_sku_id": sku_id,
+                         "min_price": price_info(db, sku)["price"]})
+    return resolved
 
 
 @router.get("/catalog/products/{product_id}")

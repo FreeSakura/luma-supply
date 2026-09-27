@@ -13,7 +13,7 @@ from .db import RUNTIME, SessionLocal, session
 from .models import SKU, Product, Media, IndexTask, SearchLog, now
 from .security import current_user, require, audit
 from .common import get, expect, view
-from .catalog import price_info, queue_index
+from .catalog import price_info, queue_index, search_products
 from algorithms.retrieval import HandcraftedEncoder, ResNetEncoder, ChineseClipEncoder, rank
 
 router = APIRouter(prefix="/api")
@@ -163,10 +163,13 @@ def search(body: SearchIn, user=Depends(current_user), db: Session = Depends(ses
         text_vector = enc.encode_text(body.text) if body.text and hasattr(enc, "encode_text") else None
         hits = rank(query_vector, filtered_vectors, entries, text=body.text, image_weight=0.3, text_weight=0.7, filters={"category": body.category, "max_price": body.max_price, "available_only": body.available_only, "attributes": body.attributes}, limit=body.limit, clip_text_vector=text_vector, threshold=0.01 if query_vector is None else 0.15)
         version = metadata["version"] + "/" + metadata["encoder"]
+    cards = search_products(db, [hit["sku_id"] for hit in hits])
+    visible = {card["selected_sku_id"] for card in cards}
+    hits = [hit for hit in hits if hit["sku_id"] in visible]
     elapsed = int((perf_counter() - start) * 1000)
     log = SearchLog(user_id=user.id, query=body.text, results=[x["sku_id"] for x in hits], latency_ms=elapsed, model_version=version)
     db.add(log); db.flush()
-    return {"query_id": log.id, "results": hits, "elapsed_ms": elapsed, "index_version": version, "notice": "外观候选不等于同款；请核对功率、色温与尺寸。" if hits else "没有满足条件的结果，请调整框选、条件或联系人工客服。"}
+    return {"query_id": log.id, "results": hits, "products": cards, "elapsed_ms": elapsed, "index_version": version, "notice": "外观候选不等于同款；请核对功率、色温与尺寸。" if hits else "没有满足条件的结果，请调整框选、条件或联系人工客服。"}
 
 
 class FeedbackIn(BaseModel):

@@ -19,7 +19,9 @@ def build():
         (target/'sitemap.json').write_text(json.dumps({'rules':[{'action':'disallow','page':'*'}]}),encoding='utf-8')
         (target/'project.config.json').write_text(json.dumps({'appid':'touristappid','projectname':'luma-'+role,'compileType':'miniprogram','setting':{'urlCheck':False,'es6':True,'enhance':True,'minified':True},'libVersion':'3.7.0'},indent=2),encoding='utf-8')
         for page in ['home','work','profile','detail','login']:
-            (target/'pages'/page/'index.json').write_text('{"navigationBarTitleText":"LumaSupply"}',encoding='utf-8')
+            page_config={'navigationBarTitleText':'LumaSupply'}
+            if page=='home': page_config['enablePullDownRefresh']=True
+            (target/'pages'/page/'index.json').write_text(json.dumps(page_config,separators=(',',':')),encoding='utf-8')
     print('Built customer and merchant native mini-program projects.')
 
 
