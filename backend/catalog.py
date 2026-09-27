@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func
+from sqlalchemy import BigInteger, case, cast, func
 from sqlalchemy.orm import Session
 from .db import session
 from .models import Product, SKU, ProductChange, Quote, Merchant, User, PricingRule, IndexTask, Wishlist, now
@@ -57,25 +57,30 @@ def categories(db: Session = Depends(session, scope="function")):
     return [x[0] for x in db.query(Product.category).filter_by(status="active").distinct().order_by(Product.category)]
 
 
-def catalog_query(db, q="", category="", cct_k=None):
-    q = q.strip()
-    active_skus = db.query(SKU.id).filter(SKU.product_id == Product.id, SKU.status == "active")
-    if cct_k is not None:
-        active_skus = active_skus.filter(SKU.attributes['cct_k'].as_integer() == cct_k)
-    rows = db.query(Product).filter(Product.status == "active", active_skus.exists())
-    if category: rows = rows.filter_by(category=category)
-    if q:
-        # SQL LIKE wildcards must remain literal user input (e.g. SKU "LED_1").
-        term = q.lower()
-        matching_skus = active_skus.filter(
-            func.lower(SKU.code).contains(term, autoescape=True)
-            | func.lower(SKU.color).contains(term, autoescape=True)
-            | func.lower(SKU.specification).contains(term, autoescape=True)
-        )
-        rows = rows.filter(func.lower(Product.name).contains(term, autoescape=True)
-                           | func.lower(Product.title).contains(term, autoescape=True)
-                           | matching_skus.exists())
-    return rows
+def catalog_query(db, q="", category="", cct_k=None, max_price=None, available_only=False):
+    """Select one eligible SKU per product before sorting, counting or pagination."""
+    offers = valid_quotes(db).with_entities(Quote.sku_id, func.min(Quote.price).label("price")).group_by(Quote.sku_id).subquery()
+    rule = db.query(PricingRule).order_by(PricingRule.id.desc()).first()
+    multiplier = rule.multiplier_bp if rule else 10000
+    base = case((offers.c.price < SKU.initial_price, offers.c.price), else_=SKU.initial_price)
+    # Positive integer cents, with the same half-up rounding as price_info().
+    price = func.coalesce(SKU.manual_price, cast(func.floor((cast(base, BigInteger) * multiplier + 5000) / 10000), BigInteger))
+    term = q.strip().lower()
+    match = (func.lower(SKU.code).contains(term, autoescape=True)
+             | func.lower(SKU.color).contains(term, autoescape=True)
+             | func.lower(SKU.specification).contains(term, autoescape=True))
+    rank = func.row_number().over(partition_by=SKU.product_id,
+        order_by=[case((match, 0), else_=1), price.asc(), SKU.id.asc()])
+    eligible = db.query(SKU.product_id, SKU.id.label("sku_id"), price.label("display_price"), rank.label("rank")).join(Product).outerjoin(offers, offers.c.sku_id == SKU.id).filter(Product.status == "active", SKU.status == "active")
+    if category: eligible = eligible.filter(Product.category == category)
+    if cct_k is not None: eligible = eligible.filter(SKU.attributes['cct_k'].as_integer() == cct_k)
+    if max_price is not None: eligible = eligible.filter(price <= max_price)
+    if available_only: eligible = eligible.filter(SKU.stock_status == "available")
+    if term:
+        eligible = eligible.filter(match | func.lower(Product.name).contains(term, autoescape=True)
+                                   | func.lower(Product.title).contains(term, autoescape=True))
+    ranked = eligible.subquery()
+    return db.query(Product, ranked.c.sku_id, ranked.c.display_price).join(ranked, ranked.c.product_id == Product.id).filter(ranked.c.rank == 1)
 
 
 def preload_product_skus(db, product_ids):
@@ -86,29 +91,30 @@ def preload_product_skus(db, product_ids):
     db.info.setdefault("catalog_skus", {}).update(groups)
 
 
-@router.get("/catalog/products")
-def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), db: Session = Depends(session, scope="function")):
-    q = q.strip()
-    rows = catalog_query(db, q, category, cct_k)
-    page = rows.order_by(Product.id.desc()).offset(offset).limit(limit).all()
-    preload_product_skus(db, [p.id for p in page])
+def catalog_items(db, query, sort, offset, limit):
+    price = query.column_descriptions[2]["expr"]
+    ordering = [Product.id.desc()] if sort == "newest" else [price.asc() if sort == "price_asc" else price.desc(), Product.id.desc()]
+    page = query.order_by(*ordering).offset(offset).limit(limit).all()
+    preload_product_skus(db, [product.id for product, _, _ in page])
     results = []
-    for product in page:
-        result = product_view(db, product)
-        if not result: continue
-        eligible = [s for s in result['skus'] if cct_k is None or s['attributes'].get('cct_k') == cct_k]
-        matched = [s for s in eligible if any(q.lower() in s[field].lower() for field in ("code", "color", "specification"))]
-        if cct_k is not None or matched and q:
-            selected = min(matched or eligible, key=lambda s: s["price"])
-            result["selected_sku_id"], result["min_price"] = selected["id"], selected["price"]
+    for product, sku_id, price in page:
+        result = product_view(db, product, selected_sku=sku_id)
+        result["min_price"] = price
         results.append(result)
     return results
 
 
+@router.get("/catalog/products")
+def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), max_price: int | None = Query(None, ge=0), available_only: bool = False, sort: Literal["newest", "price_asc", "price_desc"] = "newest", db: Session = Depends(session, scope="function")):
+    query = catalog_query(db, q, category, cct_k, max_price, available_only)
+    return catalog_items(db, query, sort, offset, limit)
+
+
 @router.get("/catalog/page")
-def catalog_page(q: str = "", category: str = "", limit: int = Query(24, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), db: Session = Depends(session, scope="function")):
-    total = catalog_query(db, q, category, cct_k).count()
-    items = products(q=q, category=category, limit=limit, offset=offset, cct_k=cct_k, db=db)
+def catalog_page(q: str = "", category: str = "", limit: int = Query(24, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), max_price: int | None = Query(None, ge=0), available_only: bool = False, sort: Literal["newest", "price_asc", "price_desc"] = "newest", db: Session = Depends(session, scope="function")):
+    query = catalog_query(db, q, category, cct_k, max_price, available_only)
+    total = query.count()
+    items = catalog_items(db, query, sort, offset, limit)
     next_offset = offset + len(items)
     return {"items": items, "total": total, "offset": offset, "limit": limit,
             "next_offset": next_offset, "has_more": next_offset < total and bool(items)}

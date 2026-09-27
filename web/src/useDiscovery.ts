@@ -2,7 +2,7 @@ import { ref, type Ref } from 'vue'
 import { api } from './api'
 
 /** Catalog pages and ranked search cards have different lifetimes. */
-export function useDiscovery(catalog: Ref<any[]>, category: Ref<string>, cct: Ref<string>) {
+export function useDiscovery(catalog: Ref<any[]>, category: Ref<string>, cct: Ref<string>, filters: () => {maxPrice:string, availableOnly:boolean, sort:string}) {
   const browseItems = ref<any[]>([])
   const searchResult = ref<any>(null)
   const loading = ref(false)
@@ -26,6 +26,10 @@ export function useDiscovery(catalog: Ref<any[]>, category: Ref<string>, cct: Re
     try {
       const query = new URLSearchParams({ category: category.value, limit: '24', offset: String(append ? nextOffset : 0) })
       if(cct.value)query.set('cct_k',cct.value)
+      const options = filters()
+      if(options.maxPrice !== '')query.set('max_price',String(Math.round(Number(options.maxPrice)*100)))
+      if(options.availableOnly)query.set('available_only','true')
+      query.set('sort',options.sort)
       const result = await api('/catalog/page?' + query)
       if (request !== generation) return
       const items = append ? [...browseItems.value, ...result.items] : result.items
@@ -58,6 +62,7 @@ export function useDiscovery(catalog: Ref<any[]>, category: Ref<string>, cct: Re
 
   function reset() {
     generation++
+    catalog.value = []
     searchResult.value = null
     browseItems.value = []
     hasMore.value = false

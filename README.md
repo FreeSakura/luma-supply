@@ -19,6 +19,14 @@
 
 项目按 [MIT 许可证](LICENSE) 开源，保留阶段开发历史。课程原件、学号及联系方式、密钥、用户上传、运行数据库、模型权重及完整课程报告不进入 Git。已有项目成员分工记录保留。第三方依赖和模型权重遵循各自许可，见 [第三方说明](THIRD_PARTY_NOTICES.md)。自主生成的演示数据与真实商家数据明确区分；外部服务未联调时不标记为验收通过。金额统一使用整数分，历史订单保存快照。
 
+## 1.6 目录筛选与排序
+
+- 无文字/图片也可按预算和有货状态浏览，分类、色温、预算必须命中同一个规格。
+- 增加全目录价格升序/降序，再分页；当前有效定价与详情规格一致。
+- 一键清除完整条件；图文结果明确采用相关度排序，两个小程序同步筛选与刷新逻辑。
+
+接口、兼容性及验证见 [1.6 迭代记录](docs/ITERATION_1_6.md)。
+
 ## 1.5 三端 UI 升级
 
 - 管理端分组导航、列表搜索与状态筛选、紧凑视图、Ctrl/Cmd + K 快速跳转。
@@ -80,7 +88,7 @@ Linux/macOS：`sh scripts/start.sh`。
 - CP-SAT 求解供应商组合和合并运费，保留最优/可行状态，并提供两种贪心及枚举对照。
 - 三端账户归属控制、员工模块权限、未读通知、审计、索引版本与失败重试。
 
-验证：`python -m pytest -q`（27 项关键测试）。前端：`cd web && npm ci && npm run build`。实验：`python -m scripts.experiments --no-deep`；安装 PyTorch/torchvision 后不加该选项可运行 ResNet18 对照。
+验证：`python -m pytest -q`（30 项关键测试）。前端：`cd web && npm ci && npm run build`。原生筛选请求：`node scripts/check_miniapp_filters.cjs`。实验：`python -m scripts.experiments --no-deep`；安装 PyTorch/torchvision 后不加该选项可运行 ResNet18 对照。
 
 ## 已验证范围
 
