@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from .db import session
-from .models import Wishlist, Inquiry, SKU, Product, Review, Ticket, OrderLine, Order, Notification, Setting, Audit, Procurement, Quote, IndexTask, SearchLog, now
+from .models import Wishlist, Inquiry, InquiryBrief, SKU, Product, Review, Ticket, OrderLine, Order, Notification, Setting, Audit, Procurement, Quote, IndexTask, SearchLog, now
 from .security import current_user, require, audit, notify, notify_staff
 from .common import get, expect, view
 from .catalog import sku_view
 from .orders import accessible_order
 from .media import owned_media
+from .inquiry_service import InquiryIn, prepare_inquiry, inquiry_view
 
 router = APIRouter(prefix="/api")
 
@@ -29,7 +30,8 @@ def wishlist(user=Depends(require("customer")), db: Session = Depends(session)):
 
 @router.post("/wishlist")
 def save_wish(body: WishIn, user=Depends(require("customer")), db: Session = Depends(session)):
-    sku = get(db, SKU, body.sku_id); expect(sku.status == "active", "商品未审核")
+    sku = get(db, SKU, body.sku_id)
+    expect(sku.status == "active" and get(db, Product, sku.product_id).status == "active", "商品未上架")
     obj = db.query(Wishlist).filter_by(user_id=user.id, sku_id=body.sku_id, room=body.room).first()
     if obj:
         for k, v in body.model_dump().items(): setattr(obj, k, v)
@@ -43,20 +45,20 @@ def remove_wish(wish_id: int, user=Depends(require("customer")), db: Session = D
     return {"deleted": True}
 
 
-class InquiryIn(BaseModel):
-    wishlist_ids: list[int] = Field(min_length=1, max_length=50)
-    message: str = Field(default="", max_length=3000)
+@router.post("/inquiries/preview")
+def preview_inquiry(body: InquiryIn, user=Depends(require("customer")), db: Session = Depends(session)):
+    return prepare_inquiry(db, user, body)
 
 
 @router.post("/inquiries", status_code=201)
 def create_inquiry(body: InquiryIn, user=Depends(require("customer")), db: Session = Depends(session)):
-    items = []
-    for wid in dict.fromkeys(body.wishlist_ids):
-        w = get(db, Wishlist, wid); expect(w.user_id == user.id, "清单不属于当前客户", 403)
-        items.append({"sku_id": w.sku_id, "quantity": w.quantity, "room": w.room, "note": w.note})
-    obj = Inquiry(user_id=user.id, items=items, message=body.message); db.add(obj); db.flush()
+    prepared = prepare_inquiry(db, user, body)
+    expect(prepared['can_submit'], "清单中有未上架商品，请调整选择后再提交", 409)
+    obj = Inquiry(user_id=user.id, items=prepared['items'], message=body.message); db.add(obj); db.flush()
+    db.add(InquiryBrief(inquiry_id=obj.id, requirements=prepared['requirements'], estimate=prepared['estimate']))
+    db.flush()
     notify_staff(db, "orders", f"新的清单询价 #{obj.id}", "inquiries")
-    return view(obj)
+    return inquiry_view(db, obj)
 
 
 @router.get("/inquiries")
@@ -64,7 +66,9 @@ def inquiries(user=Depends(current_user), db: Session = Depends(session)):
     rows = db.query(Inquiry)
     if user.role == "customer": rows = rows.filter_by(user_id=user.id)
     else: expect(user.role == "admin" or user.role == "staff" and "orders" in user.permissions, "无权访问", 403)
-    return [view(x) for x in rows.order_by(Inquiry.id.desc())]
+    inquiries = rows.order_by(Inquiry.id.desc()).all()
+    briefs = {brief.inquiry_id: brief for brief in db.query(InquiryBrief).filter(InquiryBrief.inquiry_id.in_([x.id for x in inquiries]))} if inquiries else {}
+    return [inquiry_view(db, x, briefs) for x in inquiries]
 
 
 class ReviewIn(BaseModel):

@@ -1,13 +1,30 @@
 const app=()=>getApp()
 Page({
- data:{role:'customer',lang:'zh',tab:'wishlist',tabs:[],rows:[],modal:'',form:{},order:null,addresses:[],detail:null},
+ data:{role:'customer',lang:'zh',tab:'wishlist',tabs:[],rows:[],modal:'',form:{},order:null,addresses:[],detail:null,selectedIds:[],roomOptions:['全部房间 / All rooms'],roomIndex:0,selectedAmount:'¥0.00',selectedQuantity:0,inquiryPreview:null,submitting:false},
  async onShow(){const role=app().globalData.role;const tabs=role==='merchant'?[{key:'quotes',name:'我的报价 / Offers'},{key:'catalog',name:'我的商品 / Products'}]:[{key:'wishlist',name:'选购清单 / Lists'},{key:'inquiries',name:'询价 / Inquiries'},{key:'orders',name:'订单 / Orders'},{key:'tickets',name:'售后 / Service'}];this.setData({role,lang:app().globalData.lang,tabs,tab:tabs.some(x=>x.key===this.data.tab)?this.data.tab:tabs[0].key});if(app().requireLogin())await this.load()},
- async load(){const route=this.data.tab==='catalog'?'/admin/catalog':'/'+this.data.tab;let rows=await app().request(route);rows=rows.filter(Boolean).map(x=>({...x,priceText:app().money(x.total??x.price??x.sku?.price),picture:x.sku?app().picture(x.sku.images[0]):x.skus?app().picture(x.skus[0].images[0]):'',summary:x.items?x.items.map(i=>'SKU '+i.sku_id+' × '+i.quantity).join(' / '):''}));this.setData({rows})},
+ async load(){
+  const route=this.data.tab==='catalog'?'/admin/catalog':'/'+this.data.tab
+  let rows=await app().request(route)
+  rows=rows.filter(Boolean).map(x=>({...x,priceText:app().money(x.total??x.price??x.sku?.price),picture:x.sku&&x.sku.images[0]?app().picture(x.sku.images[0]):x.skus&&x.skus[0].images[0]?app().picture(x.skus[0].images[0]):'',summary:x.items?x.items.map(i=>(i.snapshot?.product_name||'SKU '+i.sku_id)+' '+(i.snapshot?.code||'')+' × '+i.quantity+' / '+i.room).join(' / '):'',estimateText:x.estimate?app().money(x.estimate.goods_amount):'',budgetText:x.requirements?.budget?app().money(x.requirements.budget):''}))
+  this.setData({rows})
+  if(this.data.tab==='wishlist'){
+   this.setData({roomOptions:['全部房间 / All rooms',...new Set(rows.map(x=>x.room))]})
+   const ids=this._wishesInitialized?this.data.selectedIds.filter(id=>rows.some(x=>x.id===id)):rows.map(x=>x.id)
+   this._wishesInitialized=true;this.selectIds(ids)
+  }
+ },
+ selectIds(ids){const rows=this.data.rows.map(x=>({...x,selected:ids.includes(x.id)}));const selected=rows.filter(x=>x.selected);this.setData({rows,selectedIds:ids,selectedAmount:app().money(selected.reduce((n,x)=>n+x.sku.price*x.quantity,0)),selectedQuantity:selected.reduce((n,x)=>n+x.quantity,0),inquiryPreview:null})},
+ toggleWish(e){const id=Number(e.currentTarget.dataset.id);const ids=this.data.selectedIds.filter(x=>x!==id);if(e.detail.value.length)ids.push(id);this.selectIds(ids)},
+ chooseRoom(e){const index=Number(e.detail.value);this.setData({roomIndex:index});this.selectIds(this.data.rows.filter(x=>!index||x.room===this.data.roomOptions[index]).map(x=>x.id))},
+ inquiryPayload(){const f=this.data.form;return {wishlist_ids:this.data.selectedIds,message:f.message||'',requirements:{project_name:f.project_name||'',budget:f.budget?Math.round(Number(f.budget)*100):null,needed_by:f.needed_by||null,destination:f.destination||'',allow_alternatives:!!f.allow_alternatives}}},
+ async previewInquiry(){if(this.data.submitting)return;this.setData({submitting:true});try{const p=await app().request('/inquiries/preview',this.inquiryPayload());p.amountText=app().money(p.estimate.goods_amount);p.gapText=app().money(p.estimate.budget_gap);p.estimate.rooms=p.estimate.rooms.map(r=>({...r,amountText:app().money(r.amount)}));this.setData({inquiryPreview:p})}finally{this.setData({submitting:false})}},
+ async submitInquiry(){if(this.data.submitting)return;this.setData({submitting:true});try{await app().request('/inquiries',this.inquiryPayload());this.setData({modal:'',tab:'inquiries'});await this.load()}finally{this.setData({submitting:false})}},
+
  async tab(e){this.setData({tab:e.currentTarget.dataset.key});await this.load()},
- input(e){this.setData({['form.'+e.currentTarget.dataset.key]:e.detail.value})},
+ input(e){this.setData({['form.'+e.currentTarget.dataset.key]:e.detail.value,...(this.data.modal==='inquiry'?{inquiryPreview:null}:{})})},
  selectAddress(e){const index=Number(e.detail.value);this.setData({'form.address_id':this.data.addresses[index].id,'form.address_label':this.data.addresses[index].detail})},
  delivery(e){this.setData({'form.delivery_mode':e.detail.value?'delivery':'pickup'})},
- async inquire(){await app().request('/inquiries',{wishlist_ids:this.data.rows.map(x=>x.id),message:'小程序房间清单询价'});this.setData({tab:'inquiries'});await this.load()},
+ inquire(){if(!this.data.selectedIds.length){wx.showToast({title:'请先勾选商品',icon:'none'});return}this.setData({modal:'inquiry',form:{allow_alternatives:false},inquiryPreview:null})},
  async deleteWish(e){await app().request('/wishlist/'+e.currentTarget.dataset.id,undefined,'DELETE');await this.load()},
  async quantity(e){const row=this.data.rows.find(x=>x.id===Number(e.currentTarget.dataset.id));await app().request('/wishlist',{...row,quantity:Number(e.detail.value)});await this.load()},
  async openOrder(e){const order=await app().request('/orders/'+e.currentTarget.dataset.id);order.lines=order.lines.map(l=>({...l,priceText:app().money(l.unit_price)}));const addresses=await app().request('/addresses');this.setData({order,addresses,modal:'order',form:{delivery_mode:'pickup'}})},

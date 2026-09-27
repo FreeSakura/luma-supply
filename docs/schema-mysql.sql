@@ -293,6 +293,17 @@ CREATE TABLE skus (
 ;
 
 
+CREATE TABLE inquiry_briefs (
+	inquiry_id INTEGER NOT NULL,
+	requirements JSON NOT NULL,
+	estimate JSON NOT NULL,
+	PRIMARY KEY (inquiry_id),
+	FOREIGN KEY(inquiry_id) REFERENCES inquiries (id)
+)
+
+;
+
+
 CREATE TABLE order_lines (
 	id INTEGER NOT NULL AUTO_INCREMENT, 
 	order_id INTEGER NOT NULL, 

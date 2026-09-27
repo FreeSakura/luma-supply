@@ -57,9 +57,11 @@ def categories(db: Session = Depends(session)):
     return [x[0] for x in db.query(Product.category).filter_by(status="active").distinct().order_by(Product.category)]
 
 
-def catalog_query(db, q="", category=""):
+def catalog_query(db, q="", category="", cct_k=None):
     q = q.strip()
     active_skus = db.query(SKU.id).filter(SKU.product_id == Product.id, SKU.status == "active")
+    if cct_k is not None:
+        active_skus = active_skus.filter(SKU.attributes['cct_k'].as_integer() == cct_k)
     rows = db.query(Product).filter(Product.status == "active", active_skus.exists())
     if category: rows = rows.filter_by(category=category)
     if q:
@@ -85,30 +87,38 @@ def preload_product_skus(db, product_ids):
 
 
 @router.get("/catalog/products")
-def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(session)):
+def products(q: str = "", category: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), db: Session = Depends(session)):
     q = q.strip()
-    rows = catalog_query(db, q, category)
+    rows = catalog_query(db, q, category, cct_k)
     page = rows.order_by(Product.id.desc()).offset(offset).limit(limit).all()
     preload_product_skus(db, [p.id for p in page])
     results = []
     for product in page:
         result = product_view(db, product)
         if not result: continue
-        matched = [s for s in result["skus"] if any(q.lower() in s[field].lower() for field in ("code", "color", "specification"))]
-        if matched and q:
-            selected = min(matched, key=lambda s: s["price"])
+        eligible = [s for s in result['skus'] if cct_k is None or s['attributes'].get('cct_k') == cct_k]
+        matched = [s for s in eligible if any(q.lower() in s[field].lower() for field in ("code", "color", "specification"))]
+        if cct_k is not None or matched and q:
+            selected = min(matched or eligible, key=lambda s: s["price"])
             result["selected_sku_id"], result["min_price"] = selected["id"], selected["price"]
         results.append(result)
     return results
 
 
 @router.get("/catalog/page")
-def catalog_page(q: str = "", category: str = "", limit: int = Query(24, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(session)):
-    total = catalog_query(db, q, category).count()
-    items = products(q=q, category=category, limit=limit, offset=offset, db=db)
+def catalog_page(q: str = "", category: str = "", limit: int = Query(24, ge=1, le=200), offset: int = Query(0, ge=0), cct_k: int | None = Query(None, ge=1000, le=10000), db: Session = Depends(session)):
+    total = catalog_query(db, q, category, cct_k).count()
+    items = products(q=q, category=category, limit=limit, offset=offset, cct_k=cct_k, db=db)
     next_offset = offset + len(items)
     return {"items": items, "total": total, "offset": offset, "limit": limit,
             "next_offset": next_offset, "has_more": next_offset < total and bool(items)}
+
+
+@router.get('/catalog/lighting-options')
+def lighting_options(db: Session = Depends(session)):
+    attributes = db.query(SKU.attributes).join(Product).filter(SKU.status == 'active', Product.status == 'active')
+    values = {row[0].get('cct_k') for row in attributes if type(row[0].get('cct_k')) is int and 1000 <= row[0]['cct_k'] <= 10000}
+    return {'cct_k': sorted(values)}
 
 
 def search_products(db, sku_ids):

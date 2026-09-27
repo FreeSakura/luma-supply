@@ -19,6 +19,15 @@
 
 项目按 [MIT 许可证](LICENSE) 开源，保留阶段开发历史。课程原件、学号及联系方式、密钥、用户上传、运行数据库、模型权重及完整课程报告不进入 Git。已有项目成员分工记录保留。第三方依赖和模型权重遵循各自许可，见 [第三方说明](THIRD_PARTY_NOTICES.md)。自主生成的演示数据与真实商家数据明确区分；外部服务未联调时不标记为验收通过。金额统一使用整数分，历史订单保存快照。
 
+## 1.3 竞品研究与产品迭代
+
+- 参考灯具导购的参数解释，增加实际色温筛选和 K / W / lm 提示。
+- 房间清单支持勾选、按房间汇总和商品参考金额。
+- 询价先预览，再提交项目名、预算、期望日期、配送区域和替代款偏好，保存提交时的参考快照。
+- 客服可读取完整需求并转订单；超预算提示不等于拒绝询价，到货日期不当作交付承诺。
+
+来源、观察边界及取舍见 [竞品调研](docs/MARKET_RESEARCH_1_3.md)，接口和升级说明见 [1.3 迭代记录](docs/ITERATION_1_3.md)。
+
 ## 1.2 技术迭代
 
 - 网页与两个小程序支持分类分页、总数和加载更多。
@@ -53,7 +62,7 @@ Linux/macOS：`sh scripts/start.sh`。
 - CP-SAT 求解供应商组合和合并运费，保留最优/可行状态，并提供两种贪心及枚举对照。
 - 三端账户归属控制、员工模块权限、未读通知、审计、索引版本与失败重试。
 
-验证：`python -m pytest -q`（18 项关键测试）。前端：`cd web && npm ci && npm run build`。实验：`python -m scripts.experiments --no-deep`；安装 PyTorch/torchvision 后不加该选项可运行 ResNet18 对照。
+验证：`python -m pytest -q`（22 项关键测试）。前端：`cd web && npm ci && npm run build`。实验：`python -m scripts.experiments --no-deep`；安装 PyTorch/torchvision 后不加该选项可运行 ResNet18 对照。
 
 ## 已验证范围
 

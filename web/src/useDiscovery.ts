@@ -2,7 +2,7 @@ import { ref, type Ref } from 'vue'
 import { api } from './api'
 
 /** Catalog pages and ranked search cards have different lifetimes. */
-export function useDiscovery(catalog: Ref<any[]>, category: Ref<string>) {
+export function useDiscovery(catalog: Ref<any[]>, category: Ref<string>, cct: Ref<string>) {
   const browseItems = ref<any[]>([])
   const searchResult = ref<any>(null)
   const loading = ref(false)
@@ -25,6 +25,7 @@ export function useDiscovery(catalog: Ref<any[]>, category: Ref<string>) {
     if (!append) { browseItems.value = []; total.value = 0; hasMore.value = false }
     try {
       const query = new URLSearchParams({ category: category.value, limit: '24', offset: String(append ? nextOffset : 0) })
+      if(cct.value)query.set('cct_k',cct.value)
       const result = await api('/catalog/page?' + query)
       if (request !== generation) return
       const items = append ? [...browseItems.value, ...result.items] : result.items

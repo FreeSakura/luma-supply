@@ -4,3 +4,5 @@
 .catalog-pagination{display:flex;align-items:center;justify-content:center;gap:20px;padding:28px 0}.catalog-pagination p{margin:0;font-size:12px}
 
 .image-placeholder{display:flex;height:100%;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#819078;font-size:12px}
+
+.lighting-guide{padding:16px 20px;background:#edf2e7;border-radius:8px;margin:-18px 0 28px;font-size:12px}.lighting-guide summary{cursor:pointer}.lighting-guide p{font-size:12px;margin:12px 0 0}.inquiry-facts{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:11px;margin:12px 0;color:#718660}

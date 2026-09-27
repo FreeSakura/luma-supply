@@ -206,6 +206,14 @@ class Inquiry(Base):
     created_at = Column(DateTime, default=now)
 
 
+class InquiryBrief(Base):
+    """Additive table: existing inquiry rows remain readable without alteration."""
+    __tablename__ = "inquiry_briefs"
+    inquiry_id = Column(Integer, ForeignKey("inquiries.id"), primary_key=True)
+    requirements = Column(JSON, nullable=False)
+    estimate = Column(JSON, nullable=False)
+
+
 class Review(Base):
     __tablename__ = "reviews"
     __table_args__ = (UniqueConstraint("order_id", "sku_id", "user_id"),)
