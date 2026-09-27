@@ -23,3 +23,4 @@ jobs:
       - run: npm ci && npm run build
         working-directory: web
       - run: node scripts/check_miniapp_filters.cjs
+      - run: node scripts/check_miniapp_wishlist.cjs

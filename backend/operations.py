@@ -1,6 +1,6 @@
 from typing import Literal
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 from .db import session
 from .models import Wishlist, SKU, Product, Review, Ticket, OrderLine, Order, Notification, Setting, Audit, Procurement, Quote, IndexTask, SearchLog, now
@@ -13,18 +13,31 @@ from .media import owned_media
 router = APIRouter(prefix="/api")
 
 
-class WishIn(BaseModel):
-    sku_id: int
-    room: str = Field(default="客厅", max_length=60)
+class WishFields(BaseModel):
+    room: str = Field(default="客厅", min_length=1, max_length=60)
     quantity: int = Field(default=1, ge=1, le=100000)
     note: str = Field(default="", max_length=300)
     watch_price: bool = False
     watch_stock: bool = False
 
+    @field_validator('room', mode='before')
+    @classmethod
+    def trim_room(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
+class WishIn(WishFields):
+    sku_id: int
+
+
+def wish_view(db, wish):
+    sku = get(db, SKU, wish.sku_id)
+    return {**view(wish), "sku": sku_view(db, sku), "product_name": get(db, Product, sku.product_id).name}
+
 
 @router.get("/wishlist")
 def wishlist(user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
-    return [{**view(w), "sku": sku_view(db, get(db, SKU, w.sku_id)), "product_name": get(db, Product, get(db, SKU, w.sku_id).product_id).name} for w in db.query(Wishlist).filter_by(user_id=user.id)]
+    return [wish_view(db, w) for w in db.query(Wishlist).filter_by(user_id=user.id)]
 
 
 @router.post("/wishlist")
@@ -36,6 +49,19 @@ def save_wish(body: WishIn, user=Depends(require("customer")), db: Session = Dep
         for k, v in body.model_dump().items(): setattr(obj, k, v)
     else: obj = Wishlist(user_id=user.id, **body.model_dump()); db.add(obj)
     db.flush(); return view(obj)
+
+
+@router.patch("/wishlist/{wish_id}")
+def edit_wish(wish_id: int, body: WishFields, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
+    obj = get(db, Wishlist, wish_id)
+    expect(obj.user_id == user.id, "无权操作", 403)
+    changes = body.model_dump(exclude_unset=True)
+    room = changes.get('room', obj.room)
+    duplicate = db.query(Wishlist.id).filter(Wishlist.user_id == user.id, Wishlist.sku_id == obj.sku_id, Wishlist.room == room, Wishlist.id != wish_id).first()
+    expect(not duplicate, "目标房间已有此规格，请编辑已有清单项", 409)
+    for key, value in changes.items(): setattr(obj, key, value)
+    db.flush()
+    return wish_view(db, obj)
 
 
 @router.delete("/wishlist/{wish_id}")
