@@ -8,9 +8,9 @@
   ],
   "window": {
     "navigationBarTitleText": "LumaSupply",
-    "navigationBarBackgroundColor": "#f5f7f1",
+    "navigationBarBackgroundColor": "#f6f6ef",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f5f7f1"
+    "backgroundColor": "#f6f6ef"
   },
   "tabBar": {
     "color": "#889578",
@@ -19,15 +19,15 @@
     "list": [
       {
         "pagePath": "pages/home/index",
-        "text": "发现 Discover"
+        "text": "选灯"
       },
       {
         "pagePath": "pages/work/index",
-        "text": "业务 Workspace"
+        "text": "选购与订单"
       },
       {
         "pagePath": "pages/profile/index",
-        "text": "我的 Profile"
+        "text": "我的"
       }
     ]
   },

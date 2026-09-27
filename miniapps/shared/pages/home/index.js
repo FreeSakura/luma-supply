@@ -1,8 +1,8 @@
 const app = () => getApp()
 Page({
- data: {products:[], categories:['全部 / All'], categoryIndex:0, text:'', image:null, budget:'', available:false, lang:'zh', role:'customer', notice:'', banners:[], cropping:false, crop:{x:0,y:0,w:1,h:1}, loading:false, total:0, nextOffset:0, hasMore:false, searchMode:false,cctIndex:0,cctOptions:['不限 / Any'],cctValues:[null]},
+ data: {products:[], categories:['全部 / All'], categoryIndex:0, text:'', image:null, budget:'', available:false, lang:'zh', role:'customer', notice:'', banners:[], cropping:false, crop:{x:0,y:0,w:1,h:1}, loading:false, total:0, nextOffset:0, hasMore:false, searchMode:false,cctIndex:0,cctOptions:['不限 / Any'],cctValues:[null],supplierStats:{total:0,pending:0,rejected:0,expired:0},signedIn:false},
  async onShow() {
-  this.setData({lang:app().globalData.lang, role:app().globalData.role})
+  app().syncTabs();this.setData({lang:app().globalData.lang, role:app().globalData.role,signedIn:!!app().globalData.token});if(this.data.role==='merchant'&&this.data.signedIn)await this.refreshSupplier()
   if (this._initialized && this._token === app().globalData.token) return
   this._token = app().globalData.token
   try {
@@ -11,6 +11,9 @@ Page({
    await this.load(); this._initialized = true
   } catch (_) { /* request() displays the actual error. */ }
  },
+ async refreshSupplier(){try{const rows=await app().request('/quotes');this.setData({supplierStats:{total:rows.filter(q=>!q.deleted).length,pending:rows.filter(q=>app().quoteState(q)==='pending').length,rejected:rows.filter(q=>app().quoteState(q)==='rejected').length,expired:rows.filter(q=>app().quoteState(q)==='expired').length}})}catch(_){}},
+ shortcut(e){if(!app().requireLogin())return;app().globalData.nextWork={tab:e.currentTarget.dataset.tab,status:e.currentTarget.dataset.status||''};wx.switchTab({url:'/pages/work/index'})},
+ offer(e){wx.navigateTo({url:'/pages/detail/index?id='+e.currentTarget.dataset.id+'&sku='+e.currentTarget.dataset.sku+'&quote=1'})},
  decorate(rows) {return rows.map(p=>{const s=p.skus.find(s=>s.id===p.selected_sku_id)||p.skus[0];return {...p,picture:s.images.length?app().picture(s.images[0]):'',priceText:app().money(p.min_price),skuCode:s.code}})},
  async load(append=false) {
   if (append && (this.data.loading || !this.data.hasMore || this.data.searchMode)) return

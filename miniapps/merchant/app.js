@@ -14,5 +14,7 @@ App({
   picture(id) { return this.globalData.baseUrl + '/api/public-media/' + encodeURIComponent(id) },
   money(v) { return '¥' + ((v||0)/100).toFixed(2) },
   setLogin(r) {this.globalData.token=r.token;this.globalData.user=r.user;wx.setStorageSync('luma-token-'+config.role,r.token)},
+  syncTabs(){const merchant=this.globalData.role==='merchant',english=this.globalData.lang==='en';const labels=english?(merchant?['Sourcing','Offers','Profile']:['Discover','Workspace','Profile']):(merchant?['选品','供货工作台','商家资料']:['选灯','选购与订单','我的']);labels.forEach((text,index)=>wx.setTabBarItem({index,text}))},
+  quoteState(q){if(q.deleted)return 'deleted';if(!q.active)return 'inactive';if(Date.parse(q.valid_until+(q.valid_until.endsWith('Z')?'':'Z'))<=Date.now())return 'expired';return q.status},
   requireLogin(){if(!this.globalData.token){wx.navigateTo({url:'/pages/login/index'});return false}return true}
 })
