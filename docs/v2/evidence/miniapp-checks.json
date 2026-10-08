@@ -1,0 +1,20 @@
+{
+  "scope": "Node execution of source with wx stubs; no native WeChat runtime",
+  "checks": [
+    {
+      "script": "scripts/check_miniapp_filters.cjs",
+      "exit_code": 0,
+      "output": "customer: filter request, ranked refresh and reset passed (source execution only)\nmerchant: filter request, ranked refresh and reset passed (source execution only)"
+    },
+    {
+      "script": "scripts/check_miniapp_wishlist.cjs",
+      "exit_code": 0,
+      "output": "customer: failed edit retains draft; PATCH save and stale preview checks passed (source only)\nmerchant: failed edit retains draft; PATCH save and stale preview checks passed (source only)"
+    },
+    {
+      "script": "scripts/check_miniapp_v2.cjs",
+      "exit_code": 0,
+      "output": "customer: 15s timeout, expired session cleanup, binding error isolation and wx.login code passed (wx stub)\nmerchant: 15s timeout, expired session cleanup, binding error isolation and wx.login code passed (wx stub)"
+    }
+  ]
+}

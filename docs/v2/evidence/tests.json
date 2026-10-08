@@ -1,0 +1,263 @@
+{
+  "version": "2.0.0",
+  "scope": "Local Windows SQLite automated tests",
+  "tests": 42,
+  "failures": 0,
+  "errors": 0,
+  "seconds": 27.783,
+  "executed_at": "2026-10-08T18:22:47.993877+08:00",
+  "cases": [
+    {
+      "name": "test_solver_matches_independent_enumeration",
+      "module": "tests.test_algorithms",
+      "seconds": 0.044,
+      "passed": true
+    },
+    {
+      "name": "test_fusion_normalization_multiview_and_hard_constraints",
+      "module": "tests.test_algorithms",
+      "seconds": 0.001,
+      "passed": true
+    },
+    {
+      "name": "test_image_feature_contract_and_invalid_crop",
+      "module": "tests.test_algorithms",
+      "seconds": 0.007,
+      "passed": true
+    },
+    {
+      "name": "test_greedy_charges_increased_freight_for_an_existing_supplier",
+      "module": "tests.test_algorithms",
+      "seconds": 0.001,
+      "passed": true
+    },
+    {
+      "name": "test_complete_business_journey",
+      "module": "tests.test_business",
+      "seconds": 1.059,
+      "passed": true
+    },
+    {
+      "name": "test_roles_ownership_and_customer_cost_privacy",
+      "module": "tests.test_business",
+      "seconds": 0.86,
+      "passed": true
+    },
+    {
+      "name": "test_idempotency_and_price_snapshot",
+      "module": "tests.test_business",
+      "seconds": 0.837,
+      "passed": true
+    },
+    {
+      "name": "test_quote_version_expiry_and_disable",
+      "module": "tests.test_business",
+      "seconds": 0.897,
+      "passed": true
+    },
+    {
+      "name": "test_stale_procurement_and_stock_shortage",
+      "module": "tests.test_business",
+      "seconds": 0.816,
+      "passed": true
+    },
+    {
+      "name": "test_unknown_stock_is_not_unlimited",
+      "module": "tests.test_business",
+      "seconds": 0.879,
+      "passed": true
+    },
+    {
+      "name": "test_upload_boundary_and_external_configuration",
+      "module": "tests.test_business",
+      "seconds": 0.965,
+      "passed": true
+    },
+    {
+      "name": "test_optimistic_confirmation_and_settings_limits",
+      "module": "tests.test_business",
+      "seconds": 0.891,
+      "passed": true
+    },
+    {
+      "name": "test_constraints_apply_to_one_sku_and_counts_before_pagination",
+      "module": "tests.test_catalog_filters",
+      "seconds": 0.559,
+      "passed": true
+    },
+    {
+      "name": "test_price_sort_is_global_stable_and_preserves_eligible_variant",
+      "module": "tests.test_catalog_filters",
+      "seconds": 0.526,
+      "passed": true
+    },
+    {
+      "name": "test_catalog_price_matches_live_rules_and_excludes_invalid_offers",
+      "module": "tests.test_catalog_filters",
+      "seconds": 0.594,
+      "passed": true
+    },
+    {
+      "name": "test_search_filters_before_pagination_and_keeps_matching_sku",
+      "module": "tests.test_catalog_iteration",
+      "seconds": 0.594,
+      "passed": true
+    },
+    {
+      "name": "test_literal_wildcards_and_unpublished_skus_do_not_match",
+      "module": "tests.test_catalog_iteration",
+      "seconds": 0.524,
+      "passed": true
+    },
+    {
+      "name": "test_index_metadata_refresh_preserves_vector_positions_and_batches_reads",
+      "module": "tests.test_catalog_iteration",
+      "seconds": 0.489,
+      "passed": true
+    },
+    {
+      "name": "test_page_counts_match_visible_filtered_products",
+      "module": "tests.test_discovery",
+      "seconds": 0.679,
+      "passed": true
+    },
+    {
+      "name": "test_ranked_cards_keep_spec_price_order_and_exclude_unapproved",
+      "module": "tests.test_discovery",
+      "seconds": 0.465,
+      "passed": true
+    },
+    {
+      "name": "test_search_returns_cards_outside_initial_hundred_products",
+      "module": "tests.test_discovery",
+      "seconds": 1.003,
+      "passed": true
+    },
+    {
+      "name": "test_customer_service_conversation_keeps_snapshot_and_enforces_ownership",
+      "module": "tests.test_inquiry_collaboration",
+      "seconds": 0.929,
+      "passed": true
+    },
+    {
+      "name": "test_withdrawn_or_closed_inquiry_cannot_receive_messages_or_create_orders",
+      "module": "tests.test_inquiry_collaboration",
+      "seconds": 0.982,
+      "passed": true
+    },
+    {
+      "name": "test_role_specific_actions_and_legacy_timeline",
+      "module": "tests.test_inquiry_collaboration",
+      "seconds": 0.868,
+      "passed": true
+    },
+    {
+      "name": "test_concurrent_conversion_creates_exactly_one_order",
+      "module": "tests.test_inquiry_collaboration",
+      "seconds": 0.804,
+      "passed": true
+    },
+    {
+      "name": "test_commit_failure_is_reported_before_a_success_response",
+      "module": "tests.test_inquiry_collaboration",
+      "seconds": 0.586,
+      "passed": true
+    },
+    {
+      "name": "test_cct_filter_selects_matching_variant_not_cheapest",
+      "module": "tests.test_inquiry_planning",
+      "seconds": 0.49,
+      "passed": true
+    },
+    {
+      "name": "test_preview_groups_selected_rooms_and_does_not_write",
+      "module": "tests.test_inquiry_planning",
+      "seconds": 0.826,
+      "passed": true
+    },
+    {
+      "name": "test_inquiry_snapshot_and_structured_brief_survive_price_changes",
+      "module": "tests.test_inquiry_planning",
+      "seconds": 0.828,
+      "passed": true
+    },
+    {
+      "name": "test_inquiry_checks_ownership_and_revalidates_publication",
+      "module": "tests.test_inquiry_planning",
+      "seconds": 0.77,
+      "passed": true
+    },
+    {
+      "name": "test_wishlist_version_rejects_stale_devices_and_legacy_writes",
+      "module": "tests.test_v2",
+      "seconds": 0.794,
+      "passed": true
+    },
+    {
+      "name": "test_inquiry_simultaneous_retry_creates_one_snapshot",
+      "module": "tests.test_v2",
+      "seconds": 0.774,
+      "passed": true
+    },
+    {
+      "name": "test_wechat_binding_is_explicit_role_scoped_and_unique",
+      "module": "tests.test_v2",
+      "seconds": 0.764,
+      "passed": true
+    },
+    {
+      "name": "test_wechat_signup_requires_consent_and_provider_configuration",
+      "module": "tests.test_v2",
+      "seconds": 0.477,
+      "passed": true
+    },
+    {
+      "name": "test_login_throttling_and_shorter_admin_session",
+      "module": "tests.test_v2",
+      "seconds": 1.195,
+      "passed": true
+    },
+    {
+      "name": "test_cumulative_after_sales_does_not_exceed_ordered_quantity",
+      "module": "tests.test_v2",
+      "seconds": 0.726,
+      "passed": true
+    },
+    {
+      "name": "test_heuristic_cannot_masquerade_as_constraint_compliant",
+      "module": "tests.test_v2",
+      "seconds": 0.0,
+      "passed": true
+    },
+    {
+      "name": "test_additive_migration_preserves_legacy_rows",
+      "module": "tests.test_v2",
+      "seconds": 0.046,
+      "passed": true
+    },
+    {
+      "name": "test_unpublished_media_is_not_visible_to_other_signed_in_users",
+      "module": "tests.test_v2",
+      "seconds": 0.739,
+      "passed": true
+    },
+    {
+      "name": "test_edit_moves_same_item_and_preserves_submitted_inquiry",
+      "module": "tests.test_wishlist_editing",
+      "seconds": 0.771,
+      "passed": true
+    },
+    {
+      "name": "test_edit_checks_owner_and_room_conflict_without_losing_either_item",
+      "module": "tests.test_wishlist_editing",
+      "seconds": 0.73,
+      "passed": true
+    },
+    {
+      "name": "test_invalid_edits_do_not_change_saved_values_and_unlisted_items_remain_manageable",
+      "module": "tests.test_wishlist_editing",
+      "seconds": 0.779,
+      "passed": true
+    }
+  ]
+}

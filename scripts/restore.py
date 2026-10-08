@@ -10,6 +10,8 @@ from time import perf_counter
 def restore(source, destination):
     start = perf_counter()
     source, destination = Path(source).resolve(), Path(destination).resolve()
+    if source == destination or source in destination.parents:
+        raise ValueError('Restore destination must be outside the backup directory')
     if destination.exists():
         raise ValueError('Restore destination must not exist; keep the current data untouched')
     if not (source / 'lumasupply.db').is_file():

@@ -1,4 +1,4 @@
-# LumaSupply 灯具商城与供应协同平台
+# LumaSupply 2.0 灯具商城与供应协同平台
 
 综合课程项目：三端灯具业务、多模态商品检索、多商家采购优化。
 
@@ -18,6 +18,19 @@
 ## 交付原则
 
 项目按 [MIT 许可证](LICENSE) 开源，保留阶段开发历史。课程原件、学号及联系方式、密钥、用户上传、运行数据库、模型权重及完整课程报告不进入 Git。已有项目成员分工记录保留。第三方依赖和模型权重遵循各自许可，见 [第三方说明](THIRD_PARTY_NOTICES.md)。自主生成的演示数据与真实商家数据明确区分；外部服务未联调时不标记为验收通过。金额统一使用整数分，历史订单保存快照。
+
+## 2.0 本地交付
+
+- 清单版本冲突校验与失败草稿保留，询价提交键保证同请求重试不重复创建。
+- 客户与商家微信身份显式绑定、双 AppID 配置、通知入口及会话失效处理。
+- 附件发布权限、售后累计数量、采购基线可行性和规划版本条件写回。
+- 增量数据库升级、独立目录恢复验证、九方法检索与40组采购可复现实验。
+
+最终本地验证为42项pytest、Vue生产构建和Edge九个关键检查通过。原生小程序已做源逻辑验证，微信授权与真机、生产MFA及完整L0/L1仍待验收。详见 [2.0迭代](docs/ITERATION_2_0.md)、[需求追踪](docs/v2/REQUIREMENT_TRACE.md) 和 [脱敏证据](docs/v2/evidence)。
+
+升级需重新构建前端及小程序；清单PATCH新增必填version、询价POST新增必填submission_key。先备份，再执行 `python -m backend.migrations`。恢复到新目录使用 `python -m scripts.restore BACKUP NEW_DIRECTORY`。
+
+七份重写报告保存在本地 `output/reports-2.0/`；三人职责与时间线为明确标注的模拟记录，真实Git和实验记录保持原样。
 
 ## 1.7 房间清单编辑
 
@@ -96,7 +109,7 @@ Linux/macOS：`sh scripts/start.sh`。
 - CP-SAT 求解供应商组合和合并运费，保留最优/可行状态，并提供两种贪心及枚举对照。
 - 三端账户归属控制、员工模块权限、未读通知、审计、索引版本与失败重试。
 
-验证：`python -m pytest -q`（33 项关键测试）。前端：`cd web && npm ci && npm run build`。原生逻辑：`node scripts/check_miniapp_filters.cjs`、`node scripts/check_miniapp_wishlist.cjs`。实验：`python -m scripts.experiments --no-deep`；安装 PyTorch/torchvision 后不加该选项可运行 ResNet18 对照。
+验证：`python -m pytest -q`（42 项关键测试）。前端：`cd web && npm ci && npm run build`。原生逻辑：`node scripts/check_miniapp_filters.cjs`、`node scripts/check_miniapp_wishlist.cjs`、`node scripts/check_miniapp_v2.cjs`。实验：`python -m scripts.experiments --no-deep`；安装 PyTorch/torchvision 后不加该选项可运行 ResNet18 对照。
 
 ## 已验证范围
 

@@ -1,6 +1,7 @@
 name: Core checks
 on:
   push:
+    branches: ['**']
   pull_request:
 permissions:
   contents: read
@@ -24,3 +25,4 @@ jobs:
         working-directory: web
       - run: node scripts/check_miniapp_filters.cjs
       - run: node scripts/check_miniapp_wishlist.cjs
+      - run: node scripts/check_miniapp_v2.cjs

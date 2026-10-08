@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "generated_date": "2026-10-08",
+  "scope": "Actual local evidence; synthetic algorithm fixtures and wx stub checks are explicitly labelled",
+  "files": [
+    {
+      "file": "browser.json",
+      "bytes": 691,
+      "sha256": "20d5249c27d70c1fdb62e561fe06ec91c67bf3f124d2578d09135659a77d08e6"
+    },
+    {
+      "file": "environment-full.json",
+      "bytes": 453,
+      "sha256": "72fd6c639ab3435eaa1cf95277b52219ca356da727ae1c9690017e522621de25"
+    },
+    {
+      "file": "environment.json",
+      "bytes": 175,
+      "sha256": "160f40702a5b56c36b032ca0e097ea5befc35899b6f4fb556dc0d0a772b93a08"
+    },
+    {
+      "file": "miniapp-checks.json",
+      "bytes": 1001,
+      "sha256": "23d5f4a4f17651aa95b61df6d82e680d0308e8e5fe9ee3aa16de9395be31e218"
+    },
+    {
+      "file": "openapi.json",
+      "bytes": 133215,
+      "sha256": "b36b022ae824dfe882aaed74fce801107fb1db465488af2909fe14283a7bf4a2"
+    },
+    {
+      "file": "paired-analysis.json",
+      "bytes": 412,
+      "sha256": "6e4e0cc38ea651d7db480d369e2812c6467d48e6a34c6f215403e4990a67bad0"
+    },
+    {
+      "file": "performance.json",
+      "bytes": 10215,
+      "sha256": "4d6c90b0f79b7f7ff45f383cd86176322b9aee49306b5148a87401cdf8643b72"
+    },
+    {
+      "file": "procurement_instances.json",
+      "bytes": 2244761,
+      "sha256": "52170fa030def0340671fbb3853e81fdc37a989182e610775a3dcedf0670f266"
+    },
+    {
+      "file": "procurement_results.json",
+      "bytes": 15893,
+      "sha256": "2372ff39d4a4064b5dd066acdb34764958499aabb788eef0d47d79f678d0febd"
+    },
+    {
+      "file": "restore-api.json",
+      "bytes": 228,
+      "sha256": "4f0bd4f442410d9231ac3f2267f164d1f43411761a6092bc461492c990f46e27"
+    },
+    {
+      "file": "restore.json",
+      "bytes": 298,
+      "sha256": "9f1dd72e63df5934da1118b82d6e25ffe511be379f3215cdaa6a7dddfb88ab8c"
+    },
+    {
+      "file": "retrieval_predictions.json",
+      "bytes": 1712696,
+      "sha256": "194ee5e283027b27983529ea1f4b9a8a3476fb2cf0b31a034fa3bfe88210af27"
+    },
+    {
+      "file": "retrieval_results.json",
+      "bytes": 45568,
+      "sha256": "31509a01a34bfb964ab2dcf6b28586a0a0350c3b314f8fb232f5e81e69629b85"
+    },
+    {
+      "file": "tests.json",
+      "bytes": 7727,
+      "sha256": "c0e73c320987afdc4e340028a4eb97be53c62600725a0e3ebe3fc5363b1799a0"
+    }
+  ]
+}

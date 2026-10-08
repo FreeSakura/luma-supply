@@ -11,3 +11,11 @@
 功能入口：登录注册找回、商品/SKU 搜索、上传图搜图、商品详情与 SKU 分享、客户清单询价/订单确认/签收/评价/售后、商家认证/报价版本/上下架、新建商品、双语界面及通知。账户角色由服务端校验。
 
 当前没有用户的微信 AppID、已备案域名和真机账号，因此原生源码交付与微信平台发布/真机验收是不同状态。浏览器三端演示使用同一组真实业务 API，可在本地验证主线。
+
+## 2.0 配置与新增功能
+
+微信快捷登录支持客户与已绑定商家。商家先用现有商家账号登录，再在我的资料点击绑定微信；客户首次快捷登录需同意服务说明。冲突不会自动合并账号。两端的AppID与Secret分别使用 WECHAT_APP_ID/SECRET 和 WECHAT_MERCHANT_APP_ID/SECRET，Secret只在后端。
+
+生成目标环境：`python -m scripts.build_miniapps --base-url https://your-api.example --customer-appid APPID --merchant-appid APPID`。默认仍为本地touristappid，HTTPS目标启用合法域名检查。清单修改携带version，询价重试复用submission_key；网络请求15秒超时，401清理失效会话。通知可跳到对应业务列表。
+
+本轮未安装或运行微信开发者工具，没有真实微信授权和真机渲染结果。`node scripts/check_miniapp_v2.cjs` 使用wx桩验证网络及会话逻辑，不能替代原生平台验收。

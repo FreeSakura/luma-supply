@@ -53,3 +53,9 @@ python -m scripts.build_miniapps
 ## 数据与开源控制
 
 仓库按用户最新要求公开，项目原始代码使用 MIT 许可证。原始课程资料、报告、用户名单、业务数据库、上传附件、账号与密钥不提交。后续提交继续检查数据授权、配置和依赖许可证，MIT 不覆盖外部模型权重与第三方数据。演示图来源和真实商家图来源必须区分。
+
+## 2.0 升级与恢复
+
+升级前备份；`python -m backend.migrations`为清单增加version并创建新增表，启动也会运行。必须重新执行npm构建和miniapps生成，旧写客户端不支持2.0的新必填version/submission_key。
+
+`python -m scripts.restore BACKUP NEW_DIRECTORY` 预检数据库和附件，只恢复到不存在的新目录，更新媒体路径并核对外键。完整文件一致性备份建议在维护窗口做；SQLite数据库在线备份不使后续文件复制自动获得原子性。先在独立端口验证恢复副本，再切换配置。
