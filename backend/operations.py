@@ -2,6 +2,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
+from sqlalchemy import update, func
 from .db import session
 from .models import Wishlist, SKU, Product, Review, Ticket, OrderLine, Order, Notification, Setting, Audit, Procurement, Quote, IndexTask, SearchLog, now
 from .security import current_user, require, audit, notify, notify_staff
@@ -30,6 +31,10 @@ class WishIn(WishFields):
     sku_id: int
 
 
+class WishEdit(WishFields):
+    version: int = Field(ge=1)
+
+
 def wish_view(db, wish):
     sku = get(db, SKU, wish.sku_id)
     return {**view(wish), "sku": sku_view(db, sku), "product_name": get(db, Product, sku.product_id).name}
@@ -46,21 +51,23 @@ def save_wish(body: WishIn, user=Depends(require("customer")), db: Session = Dep
     expect(sku.status == "active" and get(db, Product, sku.product_id).status == "active", "商品未上架")
     obj = db.query(Wishlist).filter_by(user_id=user.id, sku_id=body.sku_id, room=body.room).first()
     if obj:
-        for k, v in body.model_dump().items(): setattr(obj, k, v)
+        expect(False, "此规格已在该房间，请打开清单编辑", 409)
     else: obj = Wishlist(user_id=user.id, **body.model_dump()); db.add(obj)
     db.flush(); return view(obj)
 
 
 @router.patch("/wishlist/{wish_id}")
-def edit_wish(wish_id: int, body: WishFields, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
+def edit_wish(wish_id: int, body: WishEdit, user=Depends(require("customer")), db: Session = Depends(session, scope="function")):
     obj = get(db, Wishlist, wish_id)
     expect(obj.user_id == user.id, "无权操作", 403)
-    changes = body.model_dump(exclude_unset=True)
+    changes = body.model_dump(exclude_unset=True, exclude={"version"})
     room = changes.get('room', obj.room)
     duplicate = db.query(Wishlist.id).filter(Wishlist.user_id == user.id, Wishlist.sku_id == obj.sku_id, Wishlist.room == room, Wishlist.id != wish_id).first()
     expect(not duplicate, "目标房间已有此规格，请编辑已有清单项", 409)
-    for key, value in changes.items(): setattr(obj, key, value)
-    db.flush()
+    result = db.execute(update(Wishlist).where(Wishlist.id == wish_id, Wishlist.version == body.version)
+                        .values(**changes, version=Wishlist.version + 1))
+    expect(result.rowcount == 1, "清单已在其他设备修改，请刷新后核对；本次草稿未保存", 409)
+    db.flush(); db.refresh(obj)
     return wish_view(db, obj)
 
 
@@ -124,6 +131,10 @@ def add_ticket(body: TicketIn, user=Depends(require("customer")), db: Session = 
     expect(obj.status in ["fulfilling", "completed"], "履约开始后可申请售后")
     line = get(db, OrderLine, body.line_id)
     expect(line.order_id == obj.id and body.quantity <= line.quantity, "售后商品或数量无效")
+    # Lock the common order line before summing, including on SQLite.
+    db.execute(update(OrderLine).where(OrderLine.id == line.id).values(shipped_quantity=OrderLine.shipped_quantity))
+    used = db.query(func.coalesce(func.sum(Ticket.quantity), 0)).filter(Ticket.line_id == line.id).scalar()
+    expect(used + body.quantity <= line.quantity, "累计售后数量超过购买数量，请在原工单补充或联系客户服务", 409)
     owned_media(db, user, body.media_ids, ["ticket"])
     ticket = Ticket(user_id=user.id, **body.model_dump(), history=[{"at": now().isoformat(), "by": user.name, "status": "open", "note": body.description}])
     db.add(ticket); db.flush(); notify_staff(db, "orders", f"售后待处理 #{ticket.id}", "tickets")

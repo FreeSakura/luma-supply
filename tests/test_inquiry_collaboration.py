@@ -1,3 +1,4 @@
+from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from backend.db import SessionLocal
@@ -6,8 +7,9 @@ from test_inquiry_planning import wish
 
 
 def inquiry(client, headers):
-    wid = wish(client, headers[2], quantity=2)
-    result = client.post('/api/inquiries', headers=headers[2], json={
+    existing = client.get('/api/wishlist', headers=headers[2]).json()
+    wid = existing[0]['id'] if existing else wish(client, headers[2], quantity=2)
+    result = client.post('/api/inquiries', headers=headers[2], json={'submission_key': uuid4().hex, 
         'wishlist_ids': [wid], 'message': '客厅灯具询价', 'requirements': {'project_name': '客厅改造'}
     })
     assert result.status_code == 201

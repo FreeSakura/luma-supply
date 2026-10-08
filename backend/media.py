@@ -67,10 +67,15 @@ async def upload(file: UploadFile = File(...), purpose: Literal["product", "quer
 def media_file(media_id: str, db: Session = Depends(session, scope="function"), user: User = Depends(current_user)):
     m = get(db, Media, media_id)
     permitted = m.owner_id == user.id or user.role == "admin"
-    if user.role == "staff":
-        needed = "merchants" if m.purpose == "license" else "orders"
-        permitted = needed in user.permissions
-    if m.purpose in ["product", "banner", "support", "review"]: permitted = True
+    if user.role == "staff" and not permitted:
+        needed = {'license': 'merchants', 'product': 'catalog', 'banner': 'operations',
+                  'support': 'operations', 'review': 'operations', 'ticket': 'orders'}.get(m.purpose)
+        permitted = bool(needed and needed in user.permissions)
+        if m.purpose == 'proof':
+            from .models import Procurement, Shipment
+            permitted = ('procurement' in user.permissions and any(media_id in p.proof_media_ids for p in db.query(Procurement))) or ('orders' in user.permissions and any(media_id in s.proof_media_ids for s in db.query(Shipment)))
+    if not permitted and m.purpose in ["product", "banner", "support", "review"]:
+        return public_media(media_id, db)
     if not permitted and m.purpose == "proof":
         from .models import Shipment, Order
         for shipment in db.query(Shipment).join(Order).filter(Order.customer_id == user.id):

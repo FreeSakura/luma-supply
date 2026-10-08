@@ -47,7 +47,8 @@ def require(*roles, module=None):
 
 def issue_session(db, user):
     token = secrets.token_urlsafe(32)
-    db.add(LoginSession(token_hash=digest(token), user_id=user.id, expires_at=now() + timedelta(days=7)))
+    duration = timedelta(hours=8) if user.role in ('admin', 'staff') else timedelta(days=7)
+    db.add(LoginSession(token_hash=digest(token), user_id=user.id, expires_at=now() + duration))
     return {"token": token, "user": user_view(user)}
 
 

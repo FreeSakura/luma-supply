@@ -176,10 +176,14 @@ def plan(order_id: int, body: PlanIn, user=Depends(require("admin", "staff", mod
     expect(procurement.status in ["draft", "planned", "exception"], "采购已执行", 409)
     lines, quotes = procurement_inputs(db, obj)
     result = solve(lines, quotes, **body.model_dump())
-    result["baselines"] = {"unit_price": greedy(lines, quotes, max_days=body.max_days), "incremental_freight": greedy(lines, quotes, prefer_fewer=True, max_days=body.max_days)}
-    procurement.plan, procurement.constraints = result, body.model_dump()
-    procurement.planned_at = now(); procurement.version += 1
-    procurement.status = "planned" if result["status"] in ["OPTIMAL", "FEASIBLE"] else "exception"
+    baseline_constraints = body.model_dump(exclude={'time_limit'})
+    result["baselines"] = {"unit_price": greedy(lines, quotes, **baseline_constraints), "incremental_freight": greedy(lines, quotes, prefer_fewer=True, **baseline_constraints)}
+    claimed = db.execute(update(Procurement).where(Procurement.id == procurement.id,
+        Procurement.version == procurement.version, Procurement.status.in_(['draft', 'planned', 'exception']))
+        .values(plan=result, constraints=body.model_dump(), planned_at=now(), version=Procurement.version + 1,
+                status='planned' if result['status'] in ['OPTIMAL', 'FEASIBLE'] else 'exception'))
+    expect(claimed.rowcount == 1, '采购记录已变化，请刷新后重新规划', 409)
+    db.flush(); db.refresh(procurement)
     audit(db, user, "procurement.plan", procurement.id, {"solver_status": result["status"]})
     return view(procurement)
 

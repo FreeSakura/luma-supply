@@ -1,4 +1,5 @@
 from datetime import date
+from datetime import timedelta
 from pydantic import BaseModel, Field, field_validator
 from .models import Wishlist, SKU, Product, Inquiry, InquiryBrief, InquiryEvent, now
 from .catalog import sku_view
@@ -20,7 +21,7 @@ class InquiryRequirements(BaseModel):
     @field_validator('needed_by')
     @classmethod
     def future_date(cls, value):
-        if value is not None and value < now().date():
+        if value is not None and value < (now() + timedelta(hours=8)).date():
             raise ValueError('期望到货日期不能早于今天')
         return value
 
@@ -29,6 +30,10 @@ class InquiryIn(BaseModel):
     wishlist_ids: list[int] = Field(min_length=1, max_length=50)
     message: str = Field(default="", max_length=3000)
     requirements: InquiryRequirements = Field(default_factory=InquiryRequirements)
+
+
+class InquirySubmit(InquiryIn):
+    submission_key: str = Field(min_length=8, max_length=100)
 
 
 def prepare_inquiry(db, user, body):

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from .db import session
-from .models import User, Merchant, Address, Verification, LoginSession, Quote, now
+from .models import User, Merchant, Address, Verification, LoginSession, Quote, LoginAttempt, now
 from .security import current_user, require, password_hash, password_valid, issue_session, digest, user_view, audit, notify, notify_staff, MODULES
 from .common import get, expect, view
 
@@ -81,8 +81,18 @@ def register(body: RegisterIn, db: Session = Depends(session, scope="function"))
 
 @router.post("/auth/login")
 def login(body: LoginIn, db: Session = Depends(session, scope="function")):
+    key = digest(body.username.strip().lower())
+    attempt = db.get(LoginAttempt, key)
+    if attempt and now() - attempt.window_start >= timedelta(minutes=15):
+        db.delete(attempt); db.flush(); attempt = None
+    expect(not attempt or attempt.failures < 10, '登录失败次数过多，请 15 分钟后重试', 429)
     user = db.query(User).filter((User.username == body.username) | (User.phone == body.username)).first()
-    expect(user and user.active and password_valid(body.password, user.password_hash), "账户或密码不正确", 401)
+    if not (user and user.active and password_valid(body.password, user.password_hash)):
+        if attempt: attempt.failures += 1
+        else: db.add(LoginAttempt(key=key, failures=1))
+        db.commit()
+        expect(False, '账户或密码不正确', 401)
+    if attempt: db.delete(attempt)
     return issue_session(db, user)
 
 
@@ -257,21 +267,3 @@ def update_staff(user_id: int, body: StaffEdit, user=Depends(require("admin")), 
     audit(db, user, "staff.update", obj.id, body.model_dump())
     return user_view(obj)
 
-
-class WechatIn(BaseModel):
-    code: str
-
-
-@router.post("/auth/wechat")
-def wechat(body: WechatIn, db: Session = Depends(session, scope="function")):
-    app_id, secret = os.getenv("WECHAT_APP_ID"), os.getenv("WECHAT_APP_SECRET")
-    expect(app_id and secret, "微信登录未配置 AppID / Secret", 503)
-    with httpx.Client(timeout=10) as client:
-        result = client.get("https://api.weixin.qq.com/sns/jscode2session", params={"appid": app_id, "secret": secret, "js_code": body.code, "grant_type": "authorization_code"}).json()
-    expect(result.get("openid"), "微信授权失败", 502)
-    username = "wx_" + digest(app_id + result["openid"])[:30]
-    obj = db.query(User).filter_by(username=username).first()
-    if not obj:
-        obj = User(username=username, name="微信用户", role="customer", password_hash=password_hash(secrets.token_urlsafe(32))); db.add(obj); db.flush()
-    expect(obj.active, "账户已禁用", 403)
-    return issue_session(db, obj)

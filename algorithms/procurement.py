@@ -63,7 +63,7 @@ def solve(lines, quotes, max_days=365, max_suppliers=None, budget=None, time_lim
     return summarize(lines, selected, status, elapsed, solver.best_objective_bound)
 
 
-def greedy(lines, quotes, prefer_fewer=False, max_days=365):
+def greedy(lines, quotes, prefer_fewer=False, max_days=365, max_suppliers=None, budget=None):
     start = perf_counter()
     options, failures = eligible_options(lines, quotes, max_days)
     if failures: return {"status": "INFEASIBLE", "reasons": failures}
@@ -76,7 +76,15 @@ def greedy(lines, quotes, prefer_fewer=False, max_days=365):
         selected.append(choice)
         mid = choice["merchant_id"]
         paid_freight[mid] = max(paid_freight.get(mid, 0), choice.get("freight", 0))
-    return summarize(lines, selected, "HEURISTIC", perf_counter() - start)
+    result = summarize(lines, selected, "HEURISTIC", perf_counter() - start)
+    violations = []
+    if max_suppliers is not None and result['supplier_count'] > max_suppliers:
+        violations.append('supplier_limit')
+    if budget is not None and result['total_cost'] > budget:
+        violations.append('budget')
+    result.update(feasible=not violations, violations=violations)
+    if violations: result['status'] = 'CONSTRAINT_VIOLATION'
+    return result
 
 
 def exhaustive(lines, quotes, max_days=365, max_suppliers=None, budget=None):

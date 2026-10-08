@@ -1,14 +1,15 @@
 """Customer/service collaboration around an immutable inquiry snapshot."""
 from typing import Literal
+import json
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 from .db import session
-from .models import Inquiry, InquiryBrief
+from .models import Inquiry, InquiryBrief, InquirySubmission, User
 from .common import expect
-from .security import current_user, require, audit, notify, notify_staff
-from .inquiry_service import (InquiryIn, prepare_inquiry, inquiry_view, accessible_inquiry,
+from .security import current_user, require, audit, notify, notify_staff, digest
+from .inquiry_service import (InquiryIn, InquirySubmit, prepare_inquiry, inquiry_view, accessible_inquiry,
                               add_inquiry_event, inquiry_detail)
 
 router = APIRouter(prefix='/api')
@@ -20,11 +21,19 @@ def preview_inquiry(body: InquiryIn, user=Depends(require('customer')), db: Sess
 
 
 @router.post('/inquiries', status_code=201)
-def create_inquiry(body: InquiryIn, user=Depends(require('customer')), db: Session = Depends(session, scope="function")):
+def create_inquiry(body: InquirySubmit, user=Depends(require('customer')), db: Session = Depends(session, scope="function")):
+    # Serialize creation per customer so simultaneous retries return the same result.
+    db.execute(update(User).where(User.id == user.id).values(active=User.active))
+    signature = digest(json.dumps(body.model_dump(mode='json', exclude={'submission_key'}), sort_keys=True))
+    previous = db.query(InquirySubmission).filter_by(user_id=user.id, submission_key=body.submission_key).first()
+    if previous:
+        expect(previous.request_hash == signature, '提交标识已用于其他需求，请重新预览', 409)
+        return inquiry_view(db, db.get(Inquiry, previous.inquiry_id))
     prepared = prepare_inquiry(db, user, body)
     expect(prepared['can_submit'], '清单中有未上架商品，请调整选择后再提交', 409)
     inquiry = Inquiry(user_id=user.id, items=prepared['items'], message=body.message)
     db.add(inquiry); db.flush()
+    db.add(InquirySubmission(user_id=user.id, submission_key=body.submission_key, request_hash=signature, inquiry_id=inquiry.id))
     db.add(InquiryBrief(inquiry_id=inquiry.id, requirements=prepared['requirements'], estimate=prepared['estimate']))
     add_inquiry_event(db, inquiry, user, 'submitted', body.message)
     notify_staff(db, 'orders', f'新的清单询价 #{inquiry.id}', 'inquiries')

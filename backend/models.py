@@ -193,6 +193,7 @@ class Wishlist(Base):
     note = Column(String(300), default="")
     watch_price = Column(Boolean, default=False)
     watch_stock = Column(Boolean, default=False)
+    version = Column(Integer, default=1, server_default="1", nullable=False)
 
 
 class Inquiry(Base):
@@ -224,6 +225,33 @@ class InquiryEvent(Base):
     action = Column(String(30), nullable=False)
     message = Column(Text, default="")
     created_at = Column(DateTime, default=now)
+
+
+class InquirySubmission(Base):
+    __tablename__ = "inquiry_submissions"
+    __table_args__ = (UniqueConstraint("user_id", "submission_key"),)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    submission_key = Column(String(100), nullable=False)
+    request_hash = Column(String(64), nullable=False)
+    inquiry_id = Column(Integer, ForeignKey("inquiries.id"), unique=True, nullable=False)
+
+
+class WechatIdentity(Base):
+    __tablename__ = "wechat_identities"
+    __table_args__ = (UniqueConstraint("app_id", "openid_hash"), UniqueConstraint("app_id", "user_id"))
+    id = Column(Integer, primary_key=True)
+    app_id = Column(String(64), nullable=False)
+    openid_hash = Column(String(64), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=now)
+
+
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+    key = Column(String(64), primary_key=True)
+    failures = Column(Integer, default=0, nullable=False)
+    window_start = Column(DateTime, default=now, nullable=False)
 
 
 class Review(Base):

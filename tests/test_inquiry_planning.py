@@ -1,3 +1,4 @@
+from uuid import uuid4
 from datetime import timedelta
 from backend.db import SessionLocal
 from backend.models import SKU, Product, Inquiry, InquiryBrief, now
@@ -43,7 +44,7 @@ def test_inquiry_snapshot_and_structured_brief_survive_price_changes(client, hea
     wid = wish(client, headers[2], quantity=2)
     tomorrow = (now() + timedelta(days=1)).date().isoformat()
     requirements = {'project_name': '客厅改造', 'budget': 10000, 'needed_by': tomorrow, 'destination': '上海', 'allow_alternatives': True}
-    result = client.post('/api/inquiries', headers=headers[2], json={'wishlist_ids': [wid], 'requirements': requirements})
+    result = client.post('/api/inquiries', headers=headers[2], json={'submission_key': uuid4().hex, 'wishlist_ids': [wid], 'requirements': requirements})
     assert result.status_code == 201, result.text
     with SessionLocal() as db:
         db.get(SKU, 1).manual_price = 99999
@@ -71,7 +72,7 @@ def test_inquiry_checks_ownership_and_revalidates_publication(client, headers):
         db.get(Product, 1).status = 'inactive'; db.commit()
     preview = client.post('/api/inquiries/preview', headers=headers[2], json={'wishlist_ids': [wid]}).json()
     assert not preview['can_submit']
-    assert client.post('/api/inquiries', headers=headers[2], json={'wishlist_ids': [wid]}).status_code == 409
+    assert client.post('/api/inquiries', headers=headers[2], json={'submission_key': uuid4().hex, 'wishlist_ids': [wid]}).status_code == 409
     with SessionLocal() as db:
         assert db.query(Inquiry).count() == 0 and db.query(InquiryBrief).count() == 0
     yesterday = (now() - timedelta(days=1)).date().isoformat()
