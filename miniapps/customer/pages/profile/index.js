@@ -12,6 +12,8 @@ Page({
  async markRead(e){await app().request('/notifications/'+e.currentTarget.dataset.id+'/read',{});await this.load()},
  language(){const lang=this.data.lang==='zh'?'en':'zh';app().globalData.lang=lang;wx.setStorageSync('luma-lang',lang);this.setData({lang});app().syncTabs()},
  password(){this.setData({modal:'password',form:{}})},
+ async bindWechat(){if(this._binding)return;this._binding=true;try{const code=await app().wechatCode();await app().request('/auth/wechat/bind',{code,role:this.data.role});wx.showToast({title:'微信绑定成功',icon:'success'})}catch{}finally{this._binding=false}},
+ openNotification(e){const link=e.currentTarget.dataset.link;if(['orders','inquiries','tickets','quotes','catalog'].includes(link)){app().globalData.nextWork={tab:link};wx.switchTab({url:'/pages/work/index'})}},
  async changePassword(){await app().request('/auth/password',this.data.form);this.setData({modal:''});await this.logout()},
  async logout(){try{await app().request('/auth/logout',{})}finally{app().globalData.token='';wx.removeStorageSync('luma-token-'+this.data.role);wx.navigateTo({url:'/pages/login/index'})}},
  close(){this.setData({modal:''})}

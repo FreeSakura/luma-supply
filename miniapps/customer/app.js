@@ -2,10 +2,13 @@ const config = require('./config')
 App({
   globalData: { baseUrl: config.baseUrl, role: config.role, token: '', user: null, lang: 'zh' },
   onLaunch() { this.globalData.token = wx.getStorageSync('luma-token-' + config.role) || ''; this.globalData.lang = wx.getStorageSync('luma-lang') || 'zh' },
+  submissionKey(){return 'wx-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2)},
+  clearLogin(){this.globalData.token='';this.globalData.user=null;wx.removeStorageSync('luma-token-'+config.role)},
+  wechatCode(){return new Promise((resolve,reject)=>wx.login({success:r=>r.code?resolve(r.code):reject(new Error('微信未返回授权码')),fail:e=>{wx.showToast({title:'微信授权失败，请重试',icon:'none'});reject(e)}}))},
   request(path, data, method) {
-    return new Promise((resolve, reject) => wx.request({url: this.globalData.baseUrl + '/api' + path, data, method: method || (data === undefined ? 'GET' : 'POST'), header: {Authorization: 'Bearer ' + this.globalData.token}, success: r => {
+    return new Promise((resolve, reject) => wx.request({url: this.globalData.baseUrl + '/api' + path, data, timeout:15000, method: method || (data === undefined ? 'GET' : 'POST'), header: {Authorization: 'Bearer ' + this.globalData.token}, success: r => {
       if (r.statusCode >= 200 && r.statusCode < 300) resolve(r.data)
-      else {const message= typeof r.data.detail === 'string' ? r.data.detail : '请检查填写内容 / Check input'; wx.showToast({title:message, icon:'none'}); reject(new Error(message))}
+      else {if(r.statusCode===401&&!path.startsWith('/auth/')){this.clearLogin();if(!this._loginRedirect){this._loginRedirect=true;wx.navigateTo({url:'/pages/login/index',complete:()=>{this._loginRedirect=false}})}}const message= typeof r.data.detail === 'string' ? r.data.detail : '请检查填写内容 / Check input'; wx.showToast({title:message, icon:'none'}); const error=new Error(message);error.status=r.statusCode;reject(error)}
     },fail: e => {wx.showToast({title:'连接失败 / Connection failed',icon:'none'}); reject(e)}}))
   },
   upload(purpose) { return new Promise((resolve,reject)=>wx.chooseMedia({count:1,mediaType:purpose==='review'||purpose==='ticket'?['image','video']:['image'],success:chosen=>{

@@ -55,7 +55,7 @@ def retrieval(include_deep=True,include_clip=False):
     dump(OUT/'dataset'/'manifest.json',{'source':'Original deterministic procedural drawings; NOT real catalog photos','license':'Project-owned synthetic fixtures; private course use','seed':20260922,'gallery':records,'queries':queries,'splits':{'validation':sorted(validation),'test':sorted(test)},'identical_gallery_groups':[v for v in hashes.values() if len(set(v))>1]})
     matrix=np.vstack([features(Image.open(r['path'])) for r in records])
     color_matrix=np.vstack([features(Image.open(r['path']),color_only=True) for r in records])
-    methods=['color-single','shape-single','shape-multiview','crop-multiview','crop-text-fusion']
+    methods=['color-single','shape-single','shape-multiview','crop-multiview','shape-filtered','crop-filtered','text-filtered','crop-text-fusion']
     vectors={'handcrafted':matrix,'color':color_matrix}
     encoders={}
     if include_deep:
@@ -74,7 +74,7 @@ def retrieval(include_deep=True,include_clip=False):
         for q in queries:
             if q['split']!='validation':continue
             vec=features(Image.open(q['path']),q['crop'])
-            results=rank(vec,matrix,records,text=q['text'],image_weight=w,text_weight=1-w,limit=72)
+            results=rank(vec,matrix,records,text=q['text'],image_weight=w,text_weight=1-w,filters={'max_price':q['budget'],'category':q['category']},limit=72)
             ids=[x['sku_id'] for x in results];r=ids.index(q['relevant_sku'])+1
             predictions.append(1/r)
         weight_scores[str(w)]=statistics.mean(predictions)
@@ -85,13 +85,14 @@ def retrieval(include_deep=True,include_clip=False):
         predictions=[]
         for q in queries:
             if q['split']!='test':continue
-            start=perf_counter();image=Image.open(q['path']);crop=q['crop'] if method in ['crop-multiview','crop-text-fusion','chinese-clip-fusion'] else None
+            start=perf_counter();image=Image.open(q['path']);crop=q['crop'] if method in ['crop-multiview','crop-filtered','crop-text-fusion','chinese-clip-fusion'] else None
             if method.startswith('resnet18'): vec=encoders['resnet18'].encode_image(image);mat=vectors['resnet18']
             elif method.startswith('chinese-clip'):vec=encoders['chinese-clip'].encode_image(image,crop);mat=vectors['chinese-clip']
             elif method.startswith('color'):vec=features(image,color_only=True);mat=color_matrix
             else:vec=features(image,crop);mat=matrix
-            text=q['text'] if 'fusion' in method else ''
-            filters={'max_price':q['budget'],'category':q['category']} if 'fusion' in method else {}
+            text=q['text'] if 'fusion' in method or method=='text-filtered' else ''
+            if method=='text-filtered': vec=None
+            filters={'max_price':q['budget'],'category':q['category']} if 'fusion' in method or 'filtered' in method else {}
             clip_text=encoders['chinese-clip'].encode_text(text) if method.startswith('chinese-clip') else None
             hits=rank(vec,mat,records,text=text,image_weight=weight,text_weight=1-weight,filters=filters,multi_view=not method.endswith('single'),limit=72,clip_text_vector=clip_text)
             record={'method':method,'query':q['path'],'family_id':q['family_id'],'scene':q['scene'],'relevant_sku':q['relevant_sku'],'ranking':[h['sku_id'] for h in hits],'scores':[h['score'] for h in hits],'latency_ms':(perf_counter()-start)*1000,'violations':sum(h['price']>q['budget'] or h['category']!=q['category'] for h in hits[:10]) if filters else 0,'constraints_applied':bool(filters)}

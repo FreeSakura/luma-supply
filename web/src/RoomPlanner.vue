@@ -8,7 +8,8 @@ const selected=ref<number[]>([]), open=ref(false), busy=ref(false), error=ref(''
 const editing=ref<any>(null), sending=ref(false)
 const draft=reactive({room:'',quantity:1,note:'',watch_price:false,watch_stock:false})
 let previewRevision=0
-function invalidatePreview(){previewRevision++;preview.value=null}
+let submissionKey=''
+function invalidatePreview(){previewRevision++;preview.value=null;submissionKey=''}
 const form=reactive({project_name:'',budget:'',needed_by:'',destination:'',allow_alternatives:false,message:''})
 let initialized=false
 watch(()=>props.items,items=>{if(!items.length)return;if(!initialized){selected.value=items.map(x=>x.id);initialized=true}else selected.value=selected.value.filter(id=>items.some(x=>x.id===id))},{immediate:true})
@@ -23,11 +24,11 @@ function selectRoom(room:string){selected.value=props.items.filter(x=>x.room===r
 function payload(){return {wishlist_ids:chosen.value.map(x=>x.id),message:form.message,requirements:{project_name:form.project_name,budget:form.budget===''?null:Math.round(Number(form.budget)*100),needed_by:form.needed_by||null,destination:form.destination,allow_alternatives:form.allow_alternatives}}}
 async function run(fn:()=>Promise<any>){if(busy.value)return;busy.value=true;error.value='';try{await fn()}catch(e:any){error.value=e.message}finally{busy.value=false}}
 function edit(item:any){error.value='';editing.value=item;Object.assign(draft,{room:item.room,quantity:item.quantity,note:item.note,watch_price:item.watch_price,watch_stock:item.watch_stock})}
-async function save(){await run(async()=>{const saved=await api('/wishlist/'+editing.value.id,{...draft},'PATCH');editing.value=null;emit('updated',saved)})}
+async function save(){await run(async()=>{const saved=await api('/wishlist/'+editing.value.id,{...draft,version:editing.value.version},'PATCH');editing.value=null;emit('updated',saved)})}
 async function remove(id:number){await run(async()=>{await api('/wishlist/'+id,undefined,'DELETE');emit('removed',id)})}
 function begin(){invalidatePreview();error.value='';open.value=true}
 async function prepare(){const revision=previewRevision;await run(async()=>{const result=await api('/inquiries/preview',payload());if(revision===previewRevision&&open.value)preview.value=result;else if(open.value)error.value=t('需求已修改，请重新预览','Requirements changed. Please preview again.')})}
-async function submit(){if(!preview.value?.can_submit||busy.value)return;sending.value=true;await run(async()=>{await api('/inquiries',payload());open.value=false;emit('submitted')});sending.value=false}
+async function submit(){if(!preview.value?.can_submit||busy.value)return;sending.value=true;submissionKey ||= crypto.randomUUID();await run(async()=>{await api('/inquiries',{...payload(),submission_key:submissionKey});submissionKey='';open.value=false;emit('submitted')});sending.value=false}
 </script>
 
 <template>

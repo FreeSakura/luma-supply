@@ -25,7 +25,7 @@ async function check(role) {
       object[parts.at(-1)] = value
     }
   } }
-  page.data.rows = [{ id: 7, room: '客厅', quantity: 2, note: '', watch_price: true, watch_stock: false }]
+  page.data.rows = [{ id: 7, version: 1, room: '客厅', quantity: 2, note: '', watch_price: true, watch_stock: false }]
   page.editWish({ currentTarget: { dataset: { id: 7 } } })
   page.data.form.quantity = 4
   await assert.rejects(page.saveWish(), /Save failed/)
@@ -37,6 +37,7 @@ async function check(role) {
   assert.equal(lastRequest.method, 'PATCH')
   assert.equal(lastRequest.url, '/wishlist/7')
   assert.equal(lastRequest.body.quantity, 4)
+  assert.equal(lastRequest.body.version, 1)
   assert.equal(page.data.modal, '')
   page.setData({ modal: 'inquiry', selectedIds: [7], form: { budget: '100' } })
   const preview = page.previewInquiry()

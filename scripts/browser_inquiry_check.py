@@ -1,3 +1,4 @@
+from uuid import uuid4
 """Verify inquiry collaboration using the disposable market-check fixture."""
 import argparse
 import json
@@ -16,7 +17,7 @@ def check(base_url, output):
         wishlist=client.get('/api/wishlist',headers=headers).json()
         ids=[]
         for title in ['沟通后转单','客户撤回样例','客服关闭样例']:
-            r=client.post('/api/inquiries',headers=headers,json={'wishlist_ids':[w['id'] for w in wishlist],'requirements':{'project_name':title}})
+            r=client.post('/api/inquiries',headers=headers,json={'submission_key': uuid4().hex, 'wishlist_ids':[w['id'] for w in wishlist],'requirements':{'project_name':title}})
             r.raise_for_status();ids.append(r.json()['id'])
     checks,errors=[],[]
     with sync_playwright() as p:
