@@ -1,8 +1,1 @@
-* text=auto
-*.py text eol=lf
-*.js text eol=lf
-*.ts text eol=lf
-*.vue text eol=lf
-*.json text eol=lf
-*.md text eol=lf
-*.sh text eol=lf
+docs/v2/evidence/*.json text eol=lf
