@@ -55,6 +55,9 @@ def test_idle_management_session_expires_and_sensitive_action_requires_reauth(cl
 
 def test_login_source_and_alias_limits(client, headers, monkeypatch):
     with SessionLocal() as db:db.get(User,2).phone='13800000002';db.commit()
+    for _ in range(5):
+        assert client.post('/api/auth/login',json={'username':'2','password':'wrong'}).status_code==401
+    assert client.post('/api/auth/login',json={'username':'user2','password':'test-password'}).status_code==200
     for username in ['user2','13800000002','user2','13800000002','user2']:
         assert client.post('/api/auth/login',json={'username':username,'password':'wrong'}).status_code==401
     assert client.post('/api/auth/login',json={'username':'13800000002','password':'test-password'}).status_code==429

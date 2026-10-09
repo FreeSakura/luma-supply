@@ -1,0 +1,30 @@
+{
+  "version": "2.1.0",
+  "checks": [
+    {
+      "script": "scripts/check_miniapp_filters.cjs",
+      "exit_code": 0,
+      "output": "customer: filter request, ranked refresh and reset passed (source execution only)\nmerchant: filter request, ranked refresh and reset passed (source execution only)"
+    },
+    {
+      "script": "scripts/check_miniapp_wishlist.cjs",
+      "exit_code": 0,
+      "output": "customer: failed edit retains draft; PATCH save and stale preview checks passed (source only)\nmerchant: failed edit retains draft; PATCH save and stale preview checks passed (source only)"
+    },
+    {
+      "script": "scripts/check_miniapp_v2.cjs",
+      "exit_code": 0,
+      "output": "customer: 15s timeout, expired session cleanup, binding error isolation and wx.login code passed (wx stub)\nmerchant: 15s timeout, expired session cleanup, binding error isolation and wx.login code passed (wx stub)"
+    },
+    {
+      "script": "scripts/check_miniapp_v21.cjs",
+      "exit_code": 0,
+      "output": "customer: persisted draft and retry key, account isolation, non-JSON upload failure passed\nmerchant: persisted draft and retry key, account isolation, non-JSON upload failure passed"
+    },
+    {
+      "script": "scripts/check_pending_submission.cjs",
+      "exit_code": 0,
+      "output": "Web pending submissions: reload, simultaneous intents, completion and account isolation passed"
+    }
+  ]
+}

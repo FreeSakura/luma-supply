@@ -99,7 +99,7 @@ def login(body: LoginIn, request: Request, db: Session = Depends(session, scope=
     source_limit(db, request)
     username = body.username.strip()
     user = db.query(User).filter((User.username == username) | (User.phone == username)).first()
-    identity = str(user.id) if user else username.lower()
+    identity = f'user:{user.id}' if user else 'login:' + username.lower()
     account_limit(db, identity)
     if not (user and user.active and password_valid(body.password, user.password_hash)):
         login_failed(db, identity)
@@ -162,7 +162,7 @@ class ReauthIn(BaseModel):
 @router.post('/auth/reauth')
 def reauthenticate(body: ReauthIn, request: Request, user=Depends(current_user), db: Session = Depends(session, scope='function')):
     source_limit(db, request)
-    identity = str(user.id); account_limit(db, identity)
+    identity = f'user:{user.id}'; account_limit(db, identity)
     if not password_valid(body.password, user.password_hash):
         login_failed(db, identity); raise HTTPException(401, '身份验证失败')
     try: verified = verify_mfa(db, user, body.otp)

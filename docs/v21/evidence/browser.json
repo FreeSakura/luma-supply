@@ -1,0 +1,17 @@
+{
+  "scope": "Actual local Edge browser; not WeChat runtime",
+  "checks": [
+    "Customer login and exact catalog count",
+    "SKU 35 carries through detail and versioned wishlist editing",
+    "Second-device conflict is visible and preserves the unsaved draft",
+    "Reload retains inquiry draft and lost-response retry creates one inquiry",
+    "Merchant own-quote workbench renders 36 approved offers",
+    "Service converts immutable inquiry into sales order",
+    "Customer confirms own order for pickup",
+    "Management reauthentication retains the procurement form and authorizes retry",
+    "CP-SAT plan and human reservation completed through browser",
+    "390px customer viewport has no horizontal overflow"
+  ],
+  "javascript_errors": [],
+  "passed": true
+}

@@ -1,0 +1,9 @@
+{
+  "version": "2.1.0",
+  "customer_login": true,
+  "customer_orders": 1,
+  "customer_total_cents": 107992,
+  "public_media_status": 200,
+  "customer_audit_status": 403,
+  "new_sessions_created_after_restore": true
+}

@@ -1,0 +1,9 @@
+{
+  "tests": 2,
+  "failures": 0,
+  "seconds": 2.398,
+  "cases": [
+    "test_login_source_and_alias_limits",
+    "test_idle_management_session_expires_and_sensitive_action_requires_reauth"
+  ]
+}

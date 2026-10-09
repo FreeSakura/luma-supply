@@ -1,0 +1,14 @@
+{
+  "comparison": "crop-text-fusion minus crop-filtered",
+  "metric": "hit@1 absolute difference",
+  "family_clusters": 48,
+  "query_count": 96,
+  "difference": 0.07291666666666667,
+  "bootstrap_95_percentile": [
+    0.020833333333333332,
+    0.125
+  ],
+  "resamples": 10000,
+  "seed": 20261008,
+  "note": "Paired family-cluster bootstrap within procedural test set; not real-world generalization"
+}

@@ -1,0 +1,1838 @@
+[
+  {
+    "table": "index_tasks",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "reason",
+        "type": "VARCHAR(200)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "attempts",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "error",
+        "type": "TEXT",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "login_attempts",
+    "columns": [
+      {
+        "name": "key",
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "failures",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "window_start",
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "settings",
+    "columns": [
+      {
+        "name": "key",
+        "type": "VARCHAR(60)",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "value",
+        "type": "JSON",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "users",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "username",
+        "type": "VARCHAR(40)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "phone",
+        "type": "VARCHAR(30)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "password_hash",
+        "type": "VARCHAR(200)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "role",
+        "type": "VARCHAR(20)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "name",
+        "type": "VARCHAR(80)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "permissions",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "active",
+        "type": "BOOLEAN",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "username"
+      ],
+      [
+        "phone"
+      ]
+    ]
+  },
+  {
+    "table": "verifications",
+    "columns": [
+      {
+        "name": "phone",
+        "type": "VARCHAR(30)",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "code_hash",
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "expires_at",
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "attempts",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "sent_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "addresses",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "recipient",
+        "type": "VARCHAR(80)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "phone",
+        "type": "VARCHAR(30)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "detail",
+        "type": "VARCHAR(300)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "audit_logs",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "action",
+        "type": "VARCHAR(80)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "target",
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "details",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "media",
+    "columns": [
+      {
+        "name": "id",
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "owner_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "purpose",
+        "type": "VARCHAR(30)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "mime",
+        "type": "VARCHAR(80)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "path",
+        "type": "VARCHAR(300)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "merchants",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "shop_name",
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "legal_name",
+        "type": "VARCHAR(100)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "phone",
+        "type": "VARCHAR(30)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "address",
+        "type": "VARCHAR(300)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "license_media_id",
+        "type": "VARCHAR(64)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "reason",
+        "type": "VARCHAR(300)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "user_id"
+      ]
+    ]
+  },
+  {
+    "table": "notifications",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "message",
+        "type": "VARCHAR(500)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "link",
+        "type": "VARCHAR(200)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "read",
+        "type": "BOOLEAN",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "orders",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "number",
+        "type": "VARCHAR(40)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "customer_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "service_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "idempotency_key",
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "request_hash",
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "version",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "total",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "remark",
+        "type": "TEXT",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "delivery_mode",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "address_snapshot",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "number"
+      ],
+      [
+        "idempotency_key"
+      ]
+    ]
+  },
+  {
+    "table": "pricing_rules",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "multiplier_bp",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_by",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "products",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "name",
+        "type": "VARCHAR(150)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "title",
+        "type": "VARCHAR(200)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "category",
+        "type": "VARCHAR(50)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "description",
+        "type": "TEXT",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "owner_id",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "custom",
+        "type": "BOOLEAN",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "search_logs",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "query",
+        "type": "VARCHAR(500)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "results",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "latency_ms",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "model_version",
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "feedback",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "sessions",
+    "columns": [
+      {
+        "name": "token_hash",
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "expires_at",
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "last_seen_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "authenticated_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "mfa_verified",
+        "type": "BOOLEAN",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "totp_uses",
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "last_step",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "wechat_identities",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "app_id",
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "openid_hash",
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "app_id",
+        "user_id"
+      ],
+      [
+        "app_id",
+        "openid_hash"
+      ]
+    ]
+  },
+  {
+    "table": "inquiries",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "items",
+        "type": "JSON",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "message",
+        "type": "TEXT",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "order_id",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": [
+          "orders.id"
+        ]
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "procurements",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "order_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "orders.id"
+        ]
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(30)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "plan",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "constraints",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "planned_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "proof_media_ids",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "version",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "order_id"
+      ]
+    ]
+  },
+  {
+    "table": "product_changes",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "product_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "products.id"
+        ]
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "payload",
+        "type": "JSON",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "reason",
+        "type": "VARCHAR(300)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "shipments",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "order_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "orders.id"
+        ]
+      },
+      {
+        "name": "idempotency_key",
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "tracking",
+        "type": "VARCHAR(100)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "carrier",
+        "type": "VARCHAR(80)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "items",
+        "type": "JSON",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "proof_media_ids",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "received",
+        "type": "BOOLEAN",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "idempotency_key"
+      ]
+    ]
+  },
+  {
+    "table": "skus",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "product_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "products.id"
+        ]
+      },
+      {
+        "name": "code",
+        "type": "VARCHAR(80)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "color",
+        "type": "VARCHAR(40)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "size_mm",
+        "type": "VARCHAR(80)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "specification",
+        "type": "VARCHAR(150)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "unit",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "attributes",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "images",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "initial_price",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "manual_price",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "stock_status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "code"
+      ]
+    ]
+  },
+  {
+    "table": "inquiry_briefs",
+    "columns": [
+      {
+        "name": "inquiry_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": [
+          "inquiries.id"
+        ]
+      },
+      {
+        "name": "requirements",
+        "type": "JSON",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "estimate",
+        "type": "JSON",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "inquiry_events",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "inquiry_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "inquiries.id"
+        ]
+      },
+      {
+        "name": "actor_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "actor_name",
+        "type": "VARCHAR(80)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "actor_role",
+        "type": "VARCHAR(20)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "action",
+        "type": "VARCHAR(30)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "message",
+        "type": "TEXT",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  },
+  {
+    "table": "inquiry_submissions",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "submission_key",
+        "type": "VARCHAR(100)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "request_hash",
+        "type": "VARCHAR(64)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "inquiry_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "inquiries.id"
+        ]
+      }
+    ],
+    "unique": [
+      [
+        "inquiry_id"
+      ],
+      [
+        "user_id",
+        "submission_key"
+      ]
+    ]
+  },
+  {
+    "table": "order_lines",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "order_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "orders.id"
+        ]
+      },
+      {
+        "name": "sku_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "skus.id"
+        ]
+      },
+      {
+        "name": "quantity",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "unit_price",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "snapshot",
+        "type": "JSON",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "shipped_quantity",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "order_id",
+        "sku_id"
+      ]
+    ]
+  },
+  {
+    "table": "quotes",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "merchant_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "merchants.id"
+        ]
+      },
+      {
+        "name": "sku_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "skus.id"
+        ]
+      },
+      {
+        "name": "version",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "price",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "available_quantity",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "reserved_quantity",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "min_quantity",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "lead_days",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "freight",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "valid_until",
+        "type": "DATETIME",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "active",
+        "type": "BOOLEAN",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "deleted",
+        "type": "BOOLEAN",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "reason",
+        "type": "VARCHAR(300)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "merchant_id",
+        "sku_id",
+        "version"
+      ]
+    ]
+  },
+  {
+    "table": "reviews",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "order_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "orders.id"
+        ]
+      },
+      {
+        "name": "sku_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "skus.id"
+        ]
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "text",
+        "type": "TEXT",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "media_ids",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "reply",
+        "type": "TEXT",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "deleted",
+        "type": "BOOLEAN",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "order_id",
+        "sku_id",
+        "user_id"
+      ]
+    ]
+  },
+  {
+    "table": "wishlist",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "sku_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "skus.id"
+        ]
+      },
+      {
+        "name": "room",
+        "type": "VARCHAR(60)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "quantity",
+        "type": "INTEGER",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "note",
+        "type": "VARCHAR(300)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "watch_price",
+        "type": "BOOLEAN",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "watch_stock",
+        "type": "BOOLEAN",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "version",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": [
+      [
+        "user_id",
+        "sku_id",
+        "room"
+      ]
+    ]
+  },
+  {
+    "table": "tickets",
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": true,
+        "foreign_keys": []
+      },
+      {
+        "name": "order_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "orders.id"
+        ]
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "users.id"
+        ]
+      },
+      {
+        "name": "line_id",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": [
+          "order_lines.id"
+        ]
+      },
+      {
+        "name": "quantity",
+        "type": "INTEGER",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "category",
+        "type": "VARCHAR(40)",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "description",
+        "type": "TEXT",
+        "nullable": false,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "media_ids",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "status",
+        "type": "VARCHAR(20)",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "history",
+        "type": "JSON",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true,
+        "primary_key": false,
+        "foreign_keys": []
+      }
+    ],
+    "unique": []
+  }
+]

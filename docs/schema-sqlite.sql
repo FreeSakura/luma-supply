@@ -1,4 +1,4 @@
--- LumaSupply 2.0.0 generated from SQLAlchemy models
+-- LumaSupply 2.1.0 generated from SQLAlchemy models
 
 
 CREATE TABLE index_tasks (
@@ -209,7 +209,20 @@ CREATE TABLE sessions (
 	token_hash VARCHAR(64) NOT NULL,
 	user_id INTEGER NOT NULL,
 	expires_at DATETIME NOT NULL,
+	last_seen_at DATETIME,
+	authenticated_at DATETIME,
+	mfa_verified BOOLEAN DEFAULT '0' NOT NULL,
 	PRIMARY KEY (token_hash),
+	FOREIGN KEY(user_id) REFERENCES users (id)
+)
+
+;
+
+
+CREATE TABLE totp_uses (
+	user_id INTEGER NOT NULL,
+	last_step INTEGER NOT NULL,
+	PRIMARY KEY (user_id),
 	FOREIGN KEY(user_id) REFERENCES users (id)
 )
 
@@ -466,4 +479,10 @@ CREATE TABLE tickets (
 
 ;
 
+CREATE INDEX ix_notifications_user_read ON notifications (user_id, read);
+
+CREATE INDEX ix_orders_customer_status ON orders (customer_id, status);
+
 CREATE INDEX ix_inquiry_events_inquiry_id ON inquiry_events (inquiry_id);
+
+CREATE INDEX ix_quotes_sku_status ON quotes (sku_id, status);

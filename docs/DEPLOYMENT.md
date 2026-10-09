@@ -59,3 +59,9 @@ python -m scripts.build_miniapps
 升级前备份；`python -m backend.migrations`为清单增加version并创建新增表，启动也会运行。必须重新执行npm构建和miniapps生成，旧写客户端不支持2.0的新必填version/submission_key。
 
 `python -m scripts.restore BACKUP NEW_DIRECTORY` 预检数据库和附件，只恢复到不存在的新目录，更新媒体路径并核对外键。完整文件一致性备份建议在维护窗口做；SQLite数据库在线备份不使后续文件复制自动获得原子性。先在独立端口验证恢复副本，再切换配置。
+
+## 2.1 运行配置
+
+管理账户TOTP密钥由 `python -m scripts.configure_mfa --user admin` 创建，设置 `MFA_SECRETS_FILE` 指向生成文件；生产管理员使用密码和动态码登录。管理会话闲置30分钟失效，敏感动作要求15分钟内验证。认证来源阈值为5分钟100次，账户失败阈值为10分钟5次，可在环境配置调整。
+
+备份保存完成标记和SHA256清单，只复制数据库引用的附件。恢复拒绝中断或校验不符的备份，清除旧会话并重建索引。索引发布通过跨进程文件锁协调同主机工作进程。订单列表使用limit和offset分页，两端已提供继续加载。

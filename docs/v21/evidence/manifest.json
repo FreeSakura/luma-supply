@@ -1,0 +1,87 @@
+{
+  "version": "2.1.0",
+  "date": "2026-10-09",
+  "hash_normalization": "UTF-8 LF",
+  "files": [
+    {
+      "file": "auth-followup.json",
+      "bytes": 193,
+      "sha256": "41fab8a743ad841b1213fe82ed54fcc58cd7100e2b67d98d3936a2666abaa07e"
+    },
+    {
+      "file": "browser.json",
+      "bytes": 770,
+      "sha256": "1f20dc98bb05ff2a0d2d6c543ac31220d206aa20dc55e707b61f4f55eaf50a6a"
+    },
+    {
+      "file": "environment-full.json",
+      "bytes": 435,
+      "sha256": "9b2e5b472d3bc838ccce075c7b0b3c648a4bcad13ffe1f11f295794931c63a4b"
+    },
+    {
+      "file": "environment.json",
+      "bytes": 169,
+      "sha256": "6239ab4edb116d70e1df42c612f52657ae43dd6e8b7483ddb6f5343109230784"
+    },
+    {
+      "file": "miniapp-checks.json",
+      "bytes": 1414,
+      "sha256": "d831f5fde793b0ff6b0d63968061b7ab922b5b2c21a38b0b1f0a685baf17dea6"
+    },
+    {
+      "file": "openapi.json",
+      "bytes": 130520,
+      "sha256": "67e034f64ce42af85a59935d7aa6b0b89ad6e6a1f9afe7bf7382b6fe127b0886"
+    },
+    {
+      "file": "paired-analysis.json",
+      "bytes": 399,
+      "sha256": "e4303c833f42875c7d4a1c5b7aec69d3fc9aaeab3dafd7c576fb54649de5aca2"
+    },
+    {
+      "file": "performance-l0.json",
+      "bytes": 832097,
+      "sha256": "d645bcea6bb295a01d8ab987b1deac0b3cf9a178e0c332a0be46b2119fc5ba02"
+    },
+    {
+      "file": "procurement_instances.json",
+      "bytes": 2146454,
+      "sha256": "a6eb7c9bd3efd8496cf739359e163e8177afe8100a717a3c76db2160d8431b53"
+    },
+    {
+      "file": "procurement_results.json",
+      "bytes": 15293,
+      "sha256": "385552fc4d7b5d6b8105a1731544d9721bdd74ae40b7479e3217dfbe8ca76b98"
+    },
+    {
+      "file": "restore-api.json",
+      "bytes": 216,
+      "sha256": "c881656777140ad2744f770e1416249ef2aa44cbc8b8582b0cb8b2da203bdd82"
+    },
+    {
+      "file": "restore.json",
+      "bytes": 287,
+      "sha256": "f6903209df7f583472fb9800b3f7e253b076569cc1ec2bae94d451225b51c5f8"
+    },
+    {
+      "file": "retrieval_predictions.json",
+      "bytes": 1625671,
+      "sha256": "308a77c2c42ad60b16b8207b7fc594ef7ba653e5cba07945ead394df80f73714"
+    },
+    {
+      "file": "retrieval_results.json",
+      "bytes": 43522,
+      "sha256": "c59e6b8f86305d498b370f15adba667f99a6fa84ebf24ed97e6767d1f41b9efe"
+    },
+    {
+      "file": "schema.json",
+      "bytes": 37965,
+      "sha256": "8e0663cde52baf1d1ef4b9c8213a45e20963a7e0bae3f3dfb80673c72e863ddd"
+    },
+    {
+      "file": "tests.json",
+      "bytes": 10310,
+      "sha256": "acc9b8c1650bcbc036940800e88dd7b5094eb7dcd234cdb7a20a83ca547e813a"
+    }
+  ]
+}

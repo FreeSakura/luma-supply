@@ -1,0 +1,14 @@
+{
+  "destination": "<workspace>\\local-only\\restore-v21",
+  "counts": {
+    "users": 6,
+    "orders": 2,
+    "order_lines": 2,
+    "inquiries": 2,
+    "media": 73
+  },
+  "order_total_cents": 215984,
+  "media_verified": 73,
+  "integrity": "ok",
+  "elapsed_seconds": 0.20112009999866132
+}

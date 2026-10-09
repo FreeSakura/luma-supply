@@ -19,3 +19,9 @@
 生成目标环境：`python -m scripts.build_miniapps --base-url https://your-api.example --customer-appid APPID --merchant-appid APPID`。默认仍为本地touristappid，HTTPS目标启用合法域名检查。清单修改携带version，询价重试复用submission_key；网络请求15秒超时，401清理失效会话。通知可跳到对应业务列表。
 
 本轮未安装或运行微信开发者工具，没有真实微信授权和真机渲染结果。`node scripts/check_miniapp_v2.cjs` 使用wx桩验证网络及会话逻辑，不能替代原生平台验收。
+
+## 2.1 交互与存储
+
+客户和商家均支持验证码登录。工作台的询价草稿、选择和待处理请求标识按角色及用户ID隔离保存，重新进入后可继续预览和提交；多个请求分别保存标识，成功后清理对应项。订单按50条加载，支持继续加载和服务端关键词查找。网络层处理过期会话、15秒超时及非JSON上传错误。
+
+检查：`node scripts/check_miniapp_v21.cjs`。渠道配置沿用客户与商家各自的AppID、Secret和合法域名。
