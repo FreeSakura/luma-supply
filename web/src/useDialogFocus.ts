@@ -10,7 +10,8 @@ export function useDialogFocus() {
   )).filter(el => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden')
   function sync() {
     const dialogs = Array.from(document.querySelectorAll<HTMLElement>('.overlay .dialog, .sidebar.is-open'))
-    const next = dialogs.at(-1) || null
+    const layer = (el:HTMLElement) => Number.parseInt(getComputedStyle(el.closest('.overlay') || el).zIndex) || 0
+    const next = dialogs.sort((a,b)=>layer(a)-layer(b)).at(-1) || null
     if (next === current) return
     const old = current
     current = next

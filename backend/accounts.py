@@ -3,13 +3,15 @@ import secrets
 from datetime import timedelta
 from typing import Literal
 import httpx
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import delete, update
 from .db import session
 from .models import User, Merchant, Address, Verification, LoginSession, Quote, LoginAttempt, now
 from .security import current_user, require, password_hash, password_valid, issue_session, digest, user_view, audit, notify, notify_staff, MODULES
 from .common import get, expect, view
+from .auth_controls import source_limit, account_limit, login_failed, login_succeeded, verify_mfa, consume
 
 router = APIRouter(prefix="/api")
 
@@ -27,41 +29,53 @@ class RegisterIn(PhoneIn):
 
 
 class LoginIn(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=1, max_length=128)
+    otp: str = Field(default='', max_length=8)
 
 
 class ResetIn(PhoneIn):
     code: str
     password: str = Field(min_length=8, max_length=128)
+    otp: str = Field(default='', max_length=8)
 
 
 class CodeLogin(PhoneIn):
     code: str
+    otp: str = Field(default='', max_length=8)
 
 
 def verify_code(db, phone, code):
     record = db.get(Verification, phone)
     expect(record and record.expires_at > now() and record.attempts < 5, "验证码过期或未发送")
-    record.attempts += 1
     if not secrets.compare_digest(record.code_hash, digest(code)):
+        db.execute(update(Verification).where(Verification.phone == phone, Verification.attempts < 5).values(attempts=Verification.attempts + 1))
         db.commit()  # failed attempts must persist even when the request fails
         expect(False, "验证码错误")
-    db.delete(record)
+    result = db.execute(delete(Verification).where(Verification.phone == phone, Verification.code_hash == digest(code), Verification.expires_at > now(), Verification.attempts < 5))
+    expect(result.rowcount == 1, '验证码已使用或失效，请重新获取', 409)
 
 
 @router.post("/auth/code")
 def send_code(body: PhoneIn, request: Request, db: Session = Depends(session, scope="function")):
+    source_limit(db, request, 'sms')
     previous = db.get(Verification, body.phone)
     expect(not previous or now() - previous.sent_at >= timedelta(seconds=60), "请在 60 秒后重新发送", 429)
     code = f"{secrets.randbelow(1000000):06d}"
     endpoint = os.getenv("SMS_ENDPOINT")
     development = os.getenv("APP_ENV", "development") == "development" and request.client.host in ["127.0.0.1", "::1", "testclient"]
     expect(endpoint or development, "短信服务未配置", 503)
+    phone_bucket = consume(db, 'sms-phone', body.phone, 60)
+    allowed = phone_bucket.failures == 1
+    db.commit()
+    expect(allowed, '请在 60 秒后重新发送', 429)
     if endpoint:
-        with httpx.Client(timeout=10) as client:
-            response = client.post(endpoint, json={"phone": body.phone, "code": code, "expires_seconds": 300}, headers={"Authorization": f"Bearer {os.getenv('SMS_TOKEN', '')}"})
-            expect(response.is_success, "短信服务发送失败", 502)
+        try:
+            with httpx.Client(timeout=10) as client:
+                response = client.post(endpoint, json={"phone": body.phone, "code": code, "expires_seconds": 300}, headers={"Authorization": f"Bearer {os.getenv('SMS_TOKEN', '')}"})
+                expect(response.is_success, "短信服务发送失败", 502)
+        except httpx.HTTPError:
+            raise HTTPException(502, '短信服务暂不可用，请稍后重试') from None
     db.merge(Verification(phone=body.phone, code_hash=digest(code), attempts=0, expires_at=now() + timedelta(minutes=5), sent_at=now()))
     return {"sent": True, "mode": "gateway" if endpoint else "local-development", "development_code": code if development and not endpoint else None}
 
@@ -69,6 +83,7 @@ def send_code(body: PhoneIn, request: Request, db: Session = Depends(session, sc
 @router.post("/auth/register", status_code=201)
 def register(body: RegisterIn, db: Session = Depends(session, scope="function")):
     expect(body.agreement, "请阅读并同意注册协议与隐私说明")
+    expect(not body.username.lower().startswith('wx_'), '此前缀用于微信身份，请选择其他用户名')
     expect(not db.query(User).filter((User.username == body.username) | (User.phone == body.phone)).first(), "用户名或手机号已存在", 409)
     verify_code(db, body.phone, body.code)
     user = User(username=body.username, phone=body.phone, password_hash=password_hash(body.password), role=body.role, name=body.username)
@@ -80,35 +95,40 @@ def register(body: RegisterIn, db: Session = Depends(session, scope="function"))
 
 
 @router.post("/auth/login")
-def login(body: LoginIn, db: Session = Depends(session, scope="function")):
-    key = digest(body.username.strip().lower())
-    attempt = db.get(LoginAttempt, key)
-    if attempt and now() - attempt.window_start >= timedelta(minutes=15):
-        db.delete(attempt); db.flush(); attempt = None
-    expect(not attempt or attempt.failures < 10, '登录失败次数过多，请 15 分钟后重试', 429)
-    user = db.query(User).filter((User.username == body.username) | (User.phone == body.username)).first()
+def login(body: LoginIn, request: Request, db: Session = Depends(session, scope="function")):
+    source_limit(db, request)
+    username = body.username.strip()
+    user = db.query(User).filter((User.username == username) | (User.phone == username)).first()
+    identity = str(user.id) if user else username.lower()
+    account_limit(db, identity)
     if not (user and user.active and password_valid(body.password, user.password_hash)):
-        if attempt: attempt.failures += 1
-        else: db.add(LoginAttempt(key=key, failures=1))
-        db.commit()
+        login_failed(db, identity)
         expect(False, '账户或密码不正确', 401)
-    if attempt: db.delete(attempt)
-    return issue_session(db, user)
+    try: verified = verify_mfa(db, user, body.otp)
+    except HTTPException as exc:
+        if exc.status_code == 401: login_failed(db, identity)
+        raise
+    login_succeeded(db, identity)
+    return issue_session(db, user, verified)
 
 
 @router.post("/auth/login-code")
-def login_code(body: CodeLogin, db: Session = Depends(session, scope="function")):
-    verify_code(db, body.phone, body.code)
+def login_code(body: CodeLogin, request: Request, db: Session = Depends(session, scope="function")):
+    source_limit(db, request)
     user = db.query(User).filter_by(phone=body.phone, active=True).first()
     expect(user, "请先注册", 404)
-    return issue_session(db, user)
+    verified = verify_mfa(db, user, body.otp)
+    verify_code(db, body.phone, body.code)
+    return issue_session(db, user, verified)
 
 
 @router.post("/auth/reset")
-def reset(body: ResetIn, db: Session = Depends(session, scope="function")):
-    verify_code(db, body.phone, body.code)
+def reset(body: ResetIn, request: Request, db: Session = Depends(session, scope="function")):
+    source_limit(db, request)
     user = db.query(User).filter_by(phone=body.phone, active=True).first()
     expect(user, "账户不存在", 404)
+    verify_mfa(db, user, body.otp)
+    verify_code(db, body.phone, body.code)
     user.password_hash = password_hash(body.password)
     db.query(LoginSession).filter_by(user_id=user.id).delete()
     return {"reset": True}
@@ -129,9 +149,30 @@ def change_password(body: PasswordIn, user=Depends(current_user), db: Session = 
 
 @router.post("/auth/logout")
 def logout(request: Request, user=Depends(current_user), db: Session = Depends(session, scope="function")):
-    token = request.headers.get("authorization", "").removeprefix("Bearer ")
+    token = request.headers['authorization'].split(None, 1)[1]
     db.query(LoginSession).filter_by(token_hash=digest(token)).delete()
     return {"logged_out": True}
+
+
+class ReauthIn(BaseModel):
+    password: str = Field(min_length=1, max_length=128)
+    otp: str = Field(default='', max_length=8)
+
+
+@router.post('/auth/reauth')
+def reauthenticate(body: ReauthIn, request: Request, user=Depends(current_user), db: Session = Depends(session, scope='function')):
+    source_limit(db, request)
+    identity = str(user.id); account_limit(db, identity)
+    if not password_valid(body.password, user.password_hash):
+        login_failed(db, identity); raise HTTPException(401, '身份验证失败')
+    try: verified = verify_mfa(db, user, body.otp)
+    except HTTPException as exc:
+        if exc.status_code == 401: login_failed(db, identity)
+        raise
+    login_succeeded(db, identity)
+    record = request.state.login
+    record.authenticated_at = now(); record.last_seen_at = now(); record.mfa_verified = verified
+    return {'verified': True, 'valid_for_seconds': 900}
 
 
 @router.get("/me")
@@ -146,6 +187,7 @@ class ProfileIn(BaseModel):
 
 @router.patch("/me")
 def profile(body: ProfileIn, user=Depends(current_user), db: Session = Depends(session, scope="function")):
+    expect(body.username == user.username or not body.username.lower().startswith('wx_'), '此前缀用于微信身份，请选择其他用户名')
     expect(not db.query(User).filter(User.username == body.username, User.id != user.id).first(), "用户名已存在", 409)
     user.username, user.name = body.username, body.name
     return user_view(user)

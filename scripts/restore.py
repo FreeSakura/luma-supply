@@ -3,6 +3,8 @@ import argparse
 import json
 import shutil
 import sqlite3
+import hashlib
+from contextlib import closing
 from pathlib import Path
 from time import perf_counter
 
@@ -16,7 +18,15 @@ def restore(source, destination):
         raise ValueError('Restore destination must not exist; keep the current data untouched')
     if not (source / 'lumasupply.db').is_file():
         raise ValueError('Backup database not found')
-    with sqlite3.connect(source / 'lumasupply.db') as db:
+    if (source/'.backup-in-progress').exists():
+        raise ValueError('Backup was interrupted; restore cancelled')
+    if (source/'backup-manifest.json').exists():
+        manifest=json.loads((source/'backup-manifest.json').read_text(encoding='utf-8'))
+        for item in manifest['files']:
+            path=(source/item['path']).resolve()
+            if not path.is_relative_to(source) or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=item['sha256']:
+                raise ValueError('Backup checksum verification failed; restore cancelled')
+    with closing(sqlite3.connect(source / 'lumasupply.db')) as db:
         if db.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
             raise ValueError('Backup integrity check failed')
         media = db.execute('SELECT id, path FROM media').fetchall()
@@ -24,11 +34,13 @@ def restore(source, destination):
         if missing:
             raise ValueError(f'Backup has {len(missing)} missing media files; restore cancelled')
     shutil.copytree(source, destination)
-    with sqlite3.connect(destination / 'lumasupply.db') as db:
+    with closing(sqlite3.connect(destination / 'lumasupply.db')) as db, db:
         for mid, path in media:
             db.execute('UPDATE media SET path=? WHERE id=?', (str(destination / 'media' / Path(path.replace('\\', '/')).name), mid))
         if db.execute('PRAGMA foreign_key_check').fetchall():
             raise ValueError('Restored foreign key verification failed; do not switch service')
+        db.execute('DELETE FROM sessions')
+        db.execute("INSERT INTO index_tasks (status, reason, attempts, error, created_at) VALUES ('pending','restore verification rebuild',0,'',CURRENT_TIMESTAMP)")
         counts = {name: db.execute(f'SELECT COUNT(*) FROM {name}').fetchone()[0] for name in ['users', 'orders', 'order_lines', 'inquiries', 'media']}
         totals = db.execute('SELECT COALESCE(SUM(total),0) FROM orders').fetchone()[0]
     result = {'destination': str(destination), 'counts': counts, 'order_total_cents': totals,

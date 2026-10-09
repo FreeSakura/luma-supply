@@ -1,9 +1,10 @@
 import hashlib
 import secrets
 from datetime import timedelta
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+from sqlalchemy import update
 from .db import session
 from .models import User, LoginSession, Audit, Notification, now
 
@@ -27,13 +28,23 @@ def password_valid(value: str, stored: str):
     return secrets.compare_digest(candidate, key)
 
 
-def current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer), db: Session = Depends(session, scope="function")):
+def current_user(request: Request, credentials: HTTPAuthorizationCredentials = Depends(bearer), db: Session = Depends(session, scope="function")):
     if not credentials:
         raise HTTPException(401, "请先登录 / Sign in required")
     login = db.get(LoginSession, digest(credentials.credentials))
     user = db.get(User, login.user_id) if login and login.expires_at > now() else None
     if not user or not user.active:
         raise HTTPException(401, "登录已失效 / Session expired")
+    if user.role in ('admin', 'staff'):
+        from .auth_controls import requires_mfa
+        if not login.last_seen_at or login.last_seen_at < now() - timedelta(minutes=30) or (requires_mfa(user) and not login.mfa_verified):
+            raise HTTPException(401, '管理会话已失效，请重新登录')
+        if login.last_seen_at < now() - timedelta(minutes=1):
+            db.execute(update(LoginSession).where(LoginSession.token_hash == login.token_hash).values(last_seen_at=now()))
+        sensitive = request.url.path.startswith(('/api/admin/staff', '/api/admin/pricing')) or request.url.path.endswith(('/disable', '/procurement/confirm'))
+        if request.method not in ('GET', 'HEAD') and sensitive and (not login.authenticated_at or login.authenticated_at < now() - timedelta(minutes=15)):
+            raise HTTPException(403, {'code': 'reauth_required', 'message': '请重新验证身份后继续本次操作'})
+    request.state.login = login
     return user
 
 
@@ -45,10 +56,10 @@ def require(*roles, module=None):
     return check
 
 
-def issue_session(db, user):
+def issue_session(db, user, mfa_verified=False):
     token = secrets.token_urlsafe(32)
     duration = timedelta(hours=8) if user.role in ('admin', 'staff') else timedelta(days=7)
-    db.add(LoginSession(token_hash=digest(token), user_id=user.id, expires_at=now() + duration))
+    db.add(LoginSession(token_hash=digest(token), user_id=user.id, expires_at=now() + duration, mfa_verified=mfa_verified))
     return {"token": token, "user": user_view(user)}
 
 

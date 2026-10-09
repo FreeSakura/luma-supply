@@ -2,7 +2,7 @@ from datetime import timedelta
 import json
 import secrets
 from typing import Literal
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import update
 from sqlalchemy.orm import Session
@@ -32,10 +32,11 @@ def accessible_order(db, user, order_id, module="orders"):
 
 def order_view(db, obj, detail=False, internal=False):
     result = view(obj, exclude=("idempotency_key", "request_hash", "address_snapshot"))
-    result["customer_name"] = get(db, User, obj.customer_id).name
-    result["service_name"] = get(db, User, obj.service_id).name
-    result["lines"] = [view(x) for x in db.query(OrderLine).filter_by(order_id=obj.id)]
-    procurement = db.query(Procurement).filter_by(order_id=obj.id).one()
+    cached = db.info.get('order_views')
+    result["customer_name"] = cached['names'][obj.customer_id] if cached else get(db, User, obj.customer_id).name
+    result["service_name"] = cached['names'][obj.service_id] if cached else get(db, User, obj.service_id).name
+    result["lines"] = [view(x) for x in (cached['lines'][obj.id] if cached else db.query(OrderLine).filter_by(order_id=obj.id))]
+    procurement = cached['procurements'][obj.id] if cached else db.query(Procurement).filter_by(order_id=obj.id).one()
     result["procurement_status"] = procurement.status
     result["shipment_status"] = "shipped" if all(x["shipped_quantity"] == x["quantity"] for x in result["lines"]) else "partial" if any(x["shipped_quantity"] for x in result["lines"]) else "unshipped"
     if detail:
@@ -93,13 +94,20 @@ def create_order(body: OrderIn, user=Depends(require("admin", "staff", module="o
 
 
 @router.get("/orders")
-def orders(q: str = "", user=Depends(current_user), db: Session = Depends(session, scope="function")):
+def orders(q: str = "", limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0), user=Depends(current_user), db: Session = Depends(session, scope="function")):
     rows = db.query(Order)
     if user.role == "customer": rows = rows.filter_by(customer_id=user.id)
     else: expect(user.role == "admin" or user.role == "staff" and "orders" in user.permissions, "无订单权限", 403)
     if q:
         rows = rows.join(User, User.id == Order.customer_id).filter((Order.number.contains(q)) | (User.name.contains(q)) | (User.username.contains(q)))
-    return [order_view(db, x) for x in rows.order_by(Order.id.desc())]
+    items = rows.order_by(Order.id.desc()).offset(offset).limit(limit).all()
+    if not items: return []
+    ids = [x.id for x in items]; lines = {oid: [] for oid in ids}
+    for line in db.query(OrderLine).filter(OrderLine.order_id.in_(ids)): lines[line.order_id].append(line)
+    names = {u.id:u.name for u in db.query(User).filter(User.id.in_({uid for o in items for uid in (o.customer_id,o.service_id)}))}
+    plans = {p.order_id:p for p in db.query(Procurement).filter(Procurement.order_id.in_(ids))}
+    db.info['order_views'] = {'names':names, 'lines':lines, 'procurements':plans}
+    return [order_view(db, x) for x in items]
 
 
 @router.get("/orders/{order_id}")

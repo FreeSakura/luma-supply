@@ -32,7 +32,7 @@ def exchange(body):
             result = response.json()
     except (httpx.HTTPError, ValueError):
         raise HTTPException(502, '微信身份服务暂不可用，请重试') from None
-    expect(isinstance(result, dict) and result.get('openid') and not result.get('errcode'), '微信凭证无效或已使用，请重新授权', 401)
+    expect(isinstance(result, dict) and isinstance(result.get('openid'), str) and result['openid'] and not result.get('errcode'), '微信凭证无效或已使用，请重新授权', 401)
     return app_id, digest(app_id + result['openid'])
 
 
@@ -45,6 +45,7 @@ def login(body: WechatIn, db: Session = Depends(session, scope='function')):
         expect(body.role == 'customer', '请先用商家账号登录，在我的资料中绑定微信', 409)
         # Retain accounts created by the 1.7 customer login implementation.
         user = db.query(User).filter_by(username='wx_' + openid_hash[:30]).first()
+        expect(not user or (user.role == 'customer' and user.phone is None), '微信账户关联存在冲突，请先用账号登录并绑定', 409)
         if not user:
             expect(body.agreement, '首次微信登录请同意服务与隐私说明', 400)
             user = User(username='wx_' + openid_hash[:30], name='微信用户', role='customer',
@@ -71,4 +72,5 @@ def bind(body: WechatIn, user=Depends(require('customer', 'merchant')), db: Sess
 
 @router.get('/me/wechat')
 def binding(user=Depends(require('customer', 'merchant')), db: Session = Depends(session, scope='function')):
-    return {'bound': db.query(WechatIdentity).filter_by(user_id=user.id).first() is not None, 'role': user.role}
+    app_id = os.getenv('WECHAT_MERCHANT_APP_ID' if user.role == 'merchant' else 'WECHAT_APP_ID')
+    return {'bound': bool(app_id and db.query(WechatIdentity).filter_by(user_id=user.id, app_id=app_id).first()), 'role': user.role, 'configured': bool(app_id)}

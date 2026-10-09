@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+from zipfile import BadZipFile
 from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
@@ -13,7 +14,8 @@ from .db import RUNTIME, SessionLocal, session
 from .models import SKU, Product, Media, IndexTask, SearchLog, now
 from .security import current_user, require, audit
 from .common import get, expect, view
-from .catalog import price_info, queue_index, search_products
+from .filelocks import try_lock
+from .catalog import price_info, preload_prices, queue_index, search_products
 from algorithms.retrieval import HandcraftedEncoder, ResNetEncoder, ChineseClipEncoder, rank
 
 router = APIRouter(prefix="/api")
@@ -51,6 +53,7 @@ def current_entries(db, indexed_entries):
         SKU.id.in_(ids), SKU.status == "active", Product.status == "active"
     ).all() if ids else []
     current = {sku.id: (sku, product) for sku, product in rows}
+    preload_prices(db, current)
     entries, positions = [], []
     for position, entry in enumerate(indexed_entries):
         pair = current.get(entry["sku_id"])
@@ -64,10 +67,11 @@ def current_entries(db, indexed_entries):
 
 def build_index(db):
     enc = encoder(); entries, vectors = [], []
-    for sku in db.query(SKU).join(Product).filter(SKU.status == "active", Product.status == "active"):
-        product = db.get(Product, sku.product_id)
+    rows = db.query(SKU, Product).join(Product).filter(SKU.status == 'active', Product.status == 'active').all()
+    media_by_id = {m.id: m for m in db.query(Media).filter(Media.id.in_({mid for sku, _ in rows for mid in sku.images}))}
+    for sku, product in rows:
         for mid in sku.images:
-            media = get(db, Media, mid)
+            media = media_by_id[mid]
             with Image.open(media.path) as image: vector = enc.encode_image(image)
             vectors.append(vector)
             entries.append({**sku_search_entry(sku, product), "image_id": mid})
@@ -75,7 +79,7 @@ def build_index(db):
     matrix = np.vstack(vectors) if vectors else np.empty((0, 0), dtype=np.float32)
     np.savez_compressed(INDEX_ROOT / f"{version}.npz", vectors=matrix)
     (INDEX_ROOT / f"{version}.json").write_text(json.dumps({"version": version, "encoder": enc.version, "entries": entries}, ensure_ascii=False), encoding="utf-8")
-    temporary = INDEX_ROOT / "current.tmp"
+    temporary = INDEX_ROOT / f"current-{version}.tmp"
     temporary.write_text(version, encoding="utf-8")
     temporary.replace(INDEX_ROOT / "current")
     return {"version": version, "encoder": enc.version, "images": len(entries), "bytes": (INDEX_ROOT / f"{version}.npz").stat().st_size}
@@ -84,28 +88,39 @@ def build_index(db):
 def process_pending():
     if not index_lock.acquire(blocking=False): return
     try:
-        with SessionLocal() as db:
-            tasks = db.query(IndexTask).filter_by(status="pending").all()
-            if not tasks: return
-            for t in tasks: t.status = "running"; t.attempts += 1
-            db.commit()
-            try:
-                result = build_index(db)
-                for t in tasks: t.status = "completed"; t.error = ""
-            except Exception as exc:
-                for t in tasks: t.status = "failed"; t.error = f"{type(exc).__name__}: {str(exc)[:400]}"
-            db.commit()
+        with try_lock(INDEX_ROOT / '.publisher.lock') as locked:
+            if not locked: return
+            process_tasks()
     finally: index_lock.release()
+
+
+def process_tasks():
+    with SessionLocal() as db:
+        tasks = db.query(IndexTask).filter(IndexTask.status.in_(['pending', 'running'])).all()
+        if not tasks: return
+        for task in tasks:
+            task.status = 'running'; task.attempts += 1
+        db.commit()
+        try:
+            build_index(db)
+            for task in tasks: task.status = 'completed'; task.error = ''
+        except Exception as exc:
+            for task in tasks: task.status = 'failed'; task.error = f'{type(exc).__name__}: {str(exc)[:400]}'
+        db.commit()
 
 
 def load_index():
     global _loaded_version, _loaded_index
     expect((INDEX_ROOT / "current").exists(), "检索索引尚未就绪，请稍后重试；文字商品搜索仍可用", 503)
-    version = (INDEX_ROOT / "current").read_text(encoding="utf-8")
-    if version != _loaded_version:
-        metadata = json.loads((INDEX_ROOT / f"{version}.json").read_text(encoding="utf-8"))
-        with np.load(INDEX_ROOT / f"{version}.npz") as data: vectors = data["vectors"].copy()
-        _loaded_index, _loaded_version = (metadata, vectors), version
+    try:
+        version = (INDEX_ROOT / "current").read_text(encoding="utf-8")
+        if version != _loaded_version:
+            metadata = json.loads((INDEX_ROOT / f"{version}.json").read_text(encoding="utf-8"))
+            with np.load(INDEX_ROOT / f"{version}.npz") as data: vectors = data["vectors"].copy()
+            expect(len(vectors) == len(metadata['entries']), '索引数据不完整，请重建索引', 503)
+            _loaded_index, _loaded_version = (metadata, vectors), version
+    except (OSError, ValueError, KeyError, BadZipFile):
+        raise HTTPException(503, '检索索引不可用，请重建；普通目录仍可使用') from None
     return _loaded_index
 
 
@@ -128,7 +143,8 @@ def search(body: SearchIn, user=Depends(current_user), db: Session = Depends(ses
     query_vector, media = None, None
     if body.image_id:
         media = get(db, Media, body.image_id)
-        expect(media.owner_id == user.id or media.purpose == "product", "无权使用该图片", 403)
+        from .media import is_public
+        expect(media.owner_id == user.id or (media.purpose == 'product' and is_public(db, media)), "无权使用该图片", 403)
         expect(media.mime.startswith("image/"), "仅支持图片检索")
     if body.provider == "aliyun":
         from .integrations import aliyun_search

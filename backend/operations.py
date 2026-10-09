@@ -159,8 +159,10 @@ def update_ticket(ticket_id: int, body: TicketUpdate, user=Depends(require("admi
     obj = get(db, Ticket, ticket_id)
     transitions = {"open": ["processing", "need_information"], "processing": ["need_information", "resolved"], "need_information": ["processing", "resolved"], "resolved": ["closed", "processing"], "closed": []}
     expect(body.status in transitions[obj.status], "不允许的售后状态迁移", 409)
-    obj.status = body.status
-    obj.history = obj.history + [{"at": now().isoformat(), "by": user.name, **body.model_dump()}]
+    history = obj.history + [{"at": now().isoformat(), "by": user.name, **body.model_dump()}]
+    changed = db.execute(update(Ticket).where(Ticket.id == obj.id, Ticket.status == obj.status).values(status=body.status, history=history))
+    expect(changed.rowcount == 1, '售后状态已变化，请刷新后重试', 409)
+    db.refresh(obj)
     notify(db, obj.user_id, f"售后 #{obj.id}：{body.note}", "tickets"); audit(db, user, "ticket.update", obj.id, body.model_dump())
     return view(obj)
 
@@ -175,8 +177,13 @@ def supplement(ticket_id: int, body: TicketSupplement, user=Depends(require("cus
     obj = get(db, Ticket, ticket_id); expect(obj.user_id == user.id, "无权操作", 403)
     expect(obj.status == "need_information", "当前不需要补充资料", 409)
     owned_media(db, user, body.media_ids, ["ticket"])
-    obj.status = "processing"; obj.media_ids = obj.media_ids + body.media_ids
-    obj.history = obj.history + [{"at": now().isoformat(), "by": user.name, "status": "processing", "note": body.note}]
+    media_ids = list(dict.fromkeys(obj.media_ids + body.media_ids))
+    expect(len(media_ids) <= 9, '一个售后工单最多保留9项附件')
+    history = obj.history + [{"at": now().isoformat(), "by": user.name, "status": "processing", "note": body.note}]
+    changed = db.execute(update(Ticket).where(Ticket.id == obj.id, Ticket.status == 'need_information').values(status='processing', media_ids=media_ids, history=history))
+    expect(changed.rowcount == 1, '售后状态已变化，请刷新后重试', 409)
+    db.refresh(obj)
+    notify_staff(db, 'orders', f'售后 #{obj.id} 已补充资料', 'tickets')
     return view(obj)
 
 

@@ -14,6 +14,7 @@ async function check(role) {
       return { id: 7 }
     },
     money: value => String(value),
+    saveDraft() {},
   }
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'miniapps', role, 'pages/work/index.js'), 'utf8'), {
     Page: value => definition = value, getApp: () => app, wx: { showToast() {} },

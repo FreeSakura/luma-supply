@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, Index
 from .db import Base
 
 
@@ -25,6 +25,15 @@ class LoginSession(Base):
     token_hash = Column(String(64), primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     expires_at = Column(DateTime, nullable=False)
+    last_seen_at = Column(DateTime, default=now)
+    authenticated_at = Column(DateTime, default=now)
+    mfa_verified = Column(Boolean, default=False, server_default="0", nullable=False)
+
+
+class TotpUse(Base):
+    __tablename__ = "totp_uses"
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    last_step = Column(Integer, nullable=False)
 
 
 class Verification(Base):
@@ -101,7 +110,7 @@ class ProductChange(Base):
 
 class Quote(Base):
     __tablename__ = "quotes"
-    __table_args__ = (UniqueConstraint("merchant_id", "sku_id", "version"),)
+    __table_args__ = (UniqueConstraint("merchant_id", "sku_id", "version"), Index('ix_quotes_sku_status', 'sku_id', 'status'))
     id = Column(Integer, primary_key=True)
     merchant_id = Column(Integer, ForeignKey("merchants.id"), nullable=False)
     sku_id = Column(Integer, ForeignKey("skus.id"), nullable=False)
@@ -130,6 +139,7 @@ class PricingRule(Base):
 
 class Order(Base):
     __tablename__ = "orders"
+    __table_args__ = (Index('ix_orders_customer_status', 'customer_id', 'status'),)
     id = Column(Integer, primary_key=True)
     number = Column(String(40), unique=True, nullable=False)
     customer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -285,6 +295,7 @@ class Ticket(Base):
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = (Index('ix_notifications_user_read', 'user_id', 'read'),)
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     message = Column(String(500), nullable=False)

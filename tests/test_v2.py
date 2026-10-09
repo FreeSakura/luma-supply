@@ -35,6 +35,7 @@ def test_inquiry_simultaneous_retry_creates_one_snapshot(client, headers):
 def test_wechat_binding_is_explicit_role_scoped_and_unique(client, headers, monkeypatch):
     from backend import wechat
     monkeypatch.setattr(wechat, 'exchange', lambda body: ('test-' + body.role, digest(body.code)))
+    monkeypatch.setenv('WECHAT_MERCHANT_APP_ID', 'test-merchant')
     merchant = {'code': 'merchant-openid', 'role': 'merchant'}
     assert client.post('/api/auth/wechat', json=merchant).status_code == 409
     assert client.post('/api/auth/wechat/bind', headers=headers[2], json=merchant).status_code == 403
@@ -60,7 +61,7 @@ def test_wechat_signup_requires_consent_and_provider_configuration(client, monke
 
 
 def test_login_throttling_and_shorter_admin_session(client, headers):
-    for _ in range(10):
+    for _ in range(5):
         assert client.post('/api/auth/login', json={'username': 'user2', 'password': 'wrong'}).status_code == 401
     assert client.post('/api/auth/login', json={'username': 'user2', 'password': 'test-password'}).status_code == 429
     with SessionLocal() as db:

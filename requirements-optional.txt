@@ -3,3 +3,6 @@ torch==2.5.1
 torchvision==0.20.1
 cn-clip==1.5.1
 alibabacloud-imagesearch20201214==4.0.0
+
+# Resource sampling for the isolated L0 benchmark.
+psutil==7.2.2

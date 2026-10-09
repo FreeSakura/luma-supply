@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { api, money, mediaUrl } from './api'
-const props = defineProps<{items:any[],lang:string}>()
+import {pendingKey,completePending} from './pendingSubmission'
+const props = defineProps<{items:any[],lang:string,ownerId:number}>()
 const emit = defineEmits(['updated','removed','submitted'])
 const t=(zh:string,en:string)=>props.lang==='zh'?zh:en
 const selected=ref<number[]>([]), open=ref(false), busy=ref(false), error=ref(''), preview=ref<any>(null)
 const editing=ref<any>(null), sending=ref(false)
 const draft=reactive({room:'',quantity:1,note:'',watch_price:false,watch_stock:false})
 let previewRevision=0
-let submissionKey=''
-function invalidatePreview(){previewRevision++;preview.value=null;submissionKey=''}
+const storageKey=`luma-inquiry-draft-${props.ownerId}`
+let retained:any=null
+try{retained=JSON.parse(localStorage.getItem(storageKey)||'null')}catch{}
+let activeDraft=!!retained
+function saveDraft(){if(activeDraft)localStorage.setItem(storageKey,JSON.stringify({form:{...form},selectedIds:selected.value}))}
+function invalidatePreview(){previewRevision++;preview.value=null;saveDraft()}
 const form=reactive({project_name:'',budget:'',needed_by:'',destination:'',allow_alternatives:false,message:''})
+if(retained?.form)Object.assign(form,retained.form)
 let initialized=false
-watch(()=>props.items,items=>{if(!items.length)return;if(!initialized){selected.value=items.map(x=>x.id);initialized=true}else selected.value=selected.value.filter(id=>items.some(x=>x.id===id))},{immediate:true})
+watch(()=>props.items,items=>{if(!items.length)return;if(!initialized){selected.value=retained?.selectedIds?retained.selectedIds.filter((id:number)=>items.some(x=>x.id===id)):items.map(x=>x.id);initialized=true}else selected.value=selected.value.filter(id=>items.some(x=>x.id===id))},{immediate:true})
 watch(form,invalidatePreview,{flush:'sync'})
 watch(selected,invalidatePreview,{deep:true,flush:'sync'})
 watch(()=>props.items,invalidatePreview,{flush:'sync'})
@@ -26,9 +32,9 @@ async function run(fn:()=>Promise<any>){if(busy.value)return;busy.value=true;err
 function edit(item:any){error.value='';editing.value=item;Object.assign(draft,{room:item.room,quantity:item.quantity,note:item.note,watch_price:item.watch_price,watch_stock:item.watch_stock})}
 async function save(){await run(async()=>{const saved=await api('/wishlist/'+editing.value.id,{...draft,version:editing.value.version},'PATCH');editing.value=null;emit('updated',saved)})}
 async function remove(id:number){await run(async()=>{await api('/wishlist/'+id,undefined,'DELETE');emit('removed',id)})}
-function begin(){invalidatePreview();error.value='';open.value=true}
+function begin(){activeDraft=true;invalidatePreview();error.value='';open.value=true;saveDraft()}
 async function prepare(){const revision=previewRevision;await run(async()=>{const result=await api('/inquiries/preview',payload());if(revision===previewRevision&&open.value)preview.value=result;else if(open.value)error.value=t('需求已修改，请重新预览','Requirements changed. Please preview again.')})}
-async function submit(){if(!preview.value?.can_submit||busy.value)return;sending.value=true;submissionKey ||= crypto.randomUUID();await run(async()=>{await api('/inquiries',{...payload(),submission_key:submissionKey});submissionKey='';open.value=false;emit('submitted')});sending.value=false}
+async function submit(){if(!preview.value?.can_submit||busy.value)return;sending.value=true;const body=payload(),submissionKey=pendingKey(`${props.ownerId}-inquiry`,body);saveDraft();await run(async()=>{await api('/inquiries',{...body,submission_key:submissionKey});completePending(`${props.ownerId}-inquiry`,body);activeDraft=false;localStorage.removeItem(storageKey);open.value=false;emit('submitted')});sending.value=false}
 </script>
 
 <template>

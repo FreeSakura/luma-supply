@@ -14,7 +14,7 @@ def export(target):
     for name, dialect in [('sqlite', sqlite.dialect()), ('mysql', mysql.dialect())]:
         statements = [str(CreateTable(t).compile(dialect=dialect)) + ';' for t in Base.metadata.sorted_tables]
         statements += [str(CreateIndex(i).compile(dialect=dialect)) + ';' for t in Base.metadata.sorted_tables for i in sorted(t.indexes, key=lambda i: i.name)]
-        sql = '-- LumaSupply 2.0.0 generated from SQLAlchemy models\n\n' + '\n\n'.join(statements)
+        sql = '-- LumaSupply 2.1.0 generated from SQLAlchemy models\n\n' + '\n\n'.join(statements)
         (target / f'schema-{name}.sql').write_text('\n'.join(line.rstrip() for line in sql.splitlines()) + '\n', encoding='utf-8')
     print(f'Exported {len(Base.metadata.tables)} tables and OpenAPI to {target}')
 

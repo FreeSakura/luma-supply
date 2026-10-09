@@ -19,11 +19,19 @@ def valid_quotes(db, sku_id=None):
     return query
 
 
-def price_info(db, sku):
+def preload_prices(db, sku_ids):
     if "price_context" not in db.info:
-        groups = {}
-        for quote in valid_quotes(db): groups.setdefault(quote.sku_id, []).append(quote)
-        db.info["price_context"] = (groups, db.query(PricingRule).order_by(PricingRule.id.desc()).first())
+        db.info['price_context'] = ({}, db.query(PricingRule).order_by(PricingRule.id.desc()).first())
+    groups, _ = db.info['price_context']
+    missing = set(sku_ids) - groups.keys()
+    if missing:
+        groups.update({sid: [] for sid in missing})
+        for quote in valid_quotes(db).filter(Quote.sku_id.in_(missing)):
+            groups[quote.sku_id].append(quote)
+
+
+def price_info(db, sku):
+    preload_prices(db, [sku.id])
     groups, rule = db.info["price_context"]
     quotes = groups.get(sku.id, [])
     base = min([sku.initial_price] + [q.price for q in quotes])
@@ -45,6 +53,7 @@ def product_view(db, product, internal=False, selected_sku=None):
     if product.id not in groups_by_product:
         groups_by_product[product.id] = db.query(SKU).filter_by(product_id=product.id).all()
     skus = [s for s in groups_by_product[product.id] if internal or s.status == "active"]
+    preload_prices(db, [s.id for s in skus])
     rows = [sku_view(db, s, internal) for s in skus]
     if not rows: return None
     prices = [s["price"] for s in rows]
@@ -89,6 +98,7 @@ def preload_product_skus(db, product_ids):
         for sku in db.query(SKU).filter(SKU.product_id.in_(groups), SKU.status == "active"):
             groups[sku.product_id].append(sku)
     db.info.setdefault("catalog_skus", {}).update(groups)
+    preload_prices(db, [s.id for skus in groups.values() for s in skus])
 
 
 def catalog_items(db, query, sort, offset, limit):
@@ -233,7 +243,9 @@ def edit_product(product_id: int, body: ProductEdit, user=Depends(require("admin
 @router.post("/catalog/products/{product_id}/skus", status_code=201)
 def create_sku(product_id: int, body: SKUIn, user=Depends(require("admin", "staff", "merchant", module="catalog")), db: Session = Depends(session, scope="function")):
     obj = get(db, Product, product_id)
-    if user.role == "merchant": merchant_for(db, user)
+    if user.role == "merchant":
+        merchant_for(db, user)
+        expect(obj.owner_id == user.id, '只能为自己提交的商品增加规格', 403)
     expect(not db.query(SKU).filter_by(code=body.code).first(), "SKU 编码已存在", 409)
     check_images(db, user, [body])
     status = "pending" if user.role == "merchant" else "active"
