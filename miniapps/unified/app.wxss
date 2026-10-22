@@ -1,0 +1,2 @@
+@import "./foundation.wxss";
+@import "./theme.wxss";

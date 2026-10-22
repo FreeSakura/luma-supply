@@ -34,13 +34,15 @@ sh scripts/start.sh
 
 ## 微信小程序
 
-客户项目为 `miniapps/customer`，商家项目为 `miniapps/merchant`。共享代码位于 `miniapps/shared`，执行以下命令生成目标配置：
+本地手机调试：macOS 在项目根目录双击 `启动小程序.command`，或运行 `sh scripts/start_miniapp.sh`，自动读取当前局域网 IP、更新统一小程序配置并启动后端。换网后重新运行，再在微信开发者工具编译和预览。详细选项见 [自动配置说明](miniapps/README.md#自动配置局域网并启动推荐)。
+
+课程验收统一项目为 `miniapps/unified`，一个小程序按登录角色显示客户、商家、管理员和员工工作台。原客户项目 `miniapps/customer`、商家项目 `miniapps/merchant` 及共享代码 `miniapps/shared` 继续保留。统一项目的本机与局域网运行步骤见 [小程序说明](miniapps/README.md)。执行以下命令生成目标配置：
 
 ```sh
-python -m scripts.build_miniapps --base-url https://your-api.example --customer-appid CUSTOMER_APPID --merchant-appid MERCHANT_APPID
+python -m scripts.build_miniapps --unified-only --base-url https://your-api.example --unified-appid UNIFIED_APPID
 ```
 
-服务端分别配置客户和商家AppID及Secret，客户端只保存AppID和API地址。商家先以已有账号登录，再在资料页绑定微信。开发与渠道接入步骤见 [小程序说明](miniapps/README.md)。
+课程演示用已有业务账号登录，不依赖微信快捷登录；客户端只保存 AppID 和 API 地址。若以后启用微信快捷登录，需要另行配置服务端 AppID 与 Secret。开发与渠道接入步骤见 [小程序说明](miniapps/README.md)。
 
 ## 管理身份认证
 

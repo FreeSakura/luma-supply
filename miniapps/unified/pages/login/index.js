@@ -1,0 +1,13 @@
+const app=()=>getApp()
+Page({
+ data:{mode:'login',role:'customer',lang:'zh',form:{username:'',password:'',phone:'',code:'',otp:'',agreement:false},devCode:'',busy:false,otpOpen:false},
+ onLoad(){this.setData({role:app().globalData.role,lang:app().globalData.lang})},
+ input(e){this.setData({['form.'+e.currentTarget.dataset.key]:e.detail.value})},
+ agree(e){this.setData({'form.agreement':e.detail.value})},
+ role(e){this.setData({role:e.detail.value?'merchant':'customer'})},
+ mode(e){if(this.data.busy)return;this.setData({mode:e.currentTarget.dataset.mode,devCode:''})},
+ toggleOtp(){this.setData({otpOpen:!this.data.otpOpen})},
+ async send(){try{const r=await app().request('/auth/code',{phone:this.data.form.phone});this.setData({devCode:r.development_code||''})}catch(_){}},
+ async submit(){if(this.data.busy)return;this.setData({busy:true});try{const data={...this.data.form,role:this.data.role};const mode=this.data.mode;if(mode==='reset'){await app().request('/auth/reset',data);this.setData({mode:'login'});return}const r=await app().request(mode==='register'?'/auth/register':mode==='code'?'/auth/login-code':'/auth/login',data);app().setLogin(r);wx.switchTab({url:'/pages/home/index'})}catch(_){}finally{this.setData({busy:false})}},
+ async wechat(){if(this.data.busy)return;this.setData({busy:true});try{const code=await app().wechatCode();const result=await app().request('/auth/wechat',{code,role:this.data.role,agreement:!!this.data.form.agreement});app().setLogin(result);wx.switchTab({url:'/pages/home/index'})}catch{}finally{this.setData({busy:false})}}
+})

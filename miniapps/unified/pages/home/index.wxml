@@ -1,0 +1,54 @@
+<view wx:if="{{admin}}" class="page admin ops admin-home"><view class="admin-hero"><view class="row between"><view class="eyebrow">灯具供应协同平台</view><view class="workspace-role">{{role==='admin'?'管理员':'员工'}}</view></view><view class="section">{{role==='admin'?'让每一步协同，':'专注手边事，'}}<view class="admin-hero-em">{{role==='admin'?'都有进展。':'协作更顺畅。'}}</view></view><view class="muted">{{role==='admin'?'商品、供应与履约，一处有序掌握。':'在授权的工作空间，跟进每一项进展。'}}</view><view class="hero-rule"/></view><view wx:if="{{adminHasDashboard}}" class="admin-metrics overview-metrics"><view class="metric-card" wx:for="{{dashboard.metrics||[]}}" wx:key="label"><view class="tiny">{{item.label}}</view><view class="metric-number {{index===2?'small-number':''}}">{{item.value}}</view><view class="metric-rule"/></view></view><view wx:for="{{adminGroups}}" wx:for-item="group" wx:key="id" class="module-group">
+  <view class="module-group-heading row between"><view class="section">{{group.label}}</view><text class="tiny">{{group.items.length}} 个模块</text></view>
+  <view class="admin-menu"><button wx:for="{{group.items}}" wx:key="id" class="admin-menu-item" data-module="{{item.id}}" bindtap="adminOpen"><view class="module-icon"><view class="ui-icon icon-{{item.icon}}"/></view><view class="module-label">{{item.label}}<text>↗</text></view><view class="module-note">{{item.note}}</view></button></view>
+</view><view wx:if="{{!adminLinks.length}}" class="empty"><view class="empty-icon"><view class="ui-icon icon-shield"/></view><view class="empty-title">等待分配工作权限</view><view class="muted">获得授权后，对应模块会显示在这里。</view></view><view class="ops-footer">LumaSupply · 让协同井然有序</view></view><block wx:else>
+<view class="page {{role}} {{role==='merchant'?'ops':''}} catalog-page">
+  <view class="catalog-top row between">
+    <view class="brand mobile-brand"><view class="ui-icon icon-sun"/><text>Luma<text class="brand-light">Supply</text></text></view>
+    <view class="catalog-edition">{{role==='merchant'?'供货选品':'灵感选灯'}}</view>
+  </view>
+  <view class="hero catalog-hero">
+    <view class="hero-copy">
+      <view class="eyebrow">{{role==='merchant'?'商家供货工作台':'为每个空间，找到合适的灯'}}</view>
+      <view class="title"><view>{{role==='merchant'?'供货有序，':'找到灵感里的'}}</view><view class="hero-em">{{role==='merchant'?'合作更顺畅。':'那一束光。'}}</view></view>
+      <view class="muted">{{role==='merchant'?'跟进报价，更新供货，发现新机会。':'从灵感出发，让喜欢照进生活。'}}</view>
+      <view wx:if="{{role==='customer'}}" class="hero-tag"><view class="ui-icon icon-scan"/><text>以图找灯</text><view class="hero-tag-dot"/><text>多商家报价</text></view>
+    </view>
+    <view wx:if="{{role==='customer'}}" class="lamp-scene catalog-lamp" aria-hidden="true"><view class="lamp-glow"/><view class="lamp-cord"/><view class="lamp-cap"/><view class="lamp-shade"/><view class="lamp-light"/><view class="lamp-caption">灵感 · 灯具系列</view></view>
+  </view>
+<view wx:if="{{role==='merchant'&&signedIn}}" class="supplier-grid"><view class="supplier-tile" data-tab="quotes" data-status="" bindtap="shortcut"><text class="tiny">全部报价</text><text class="stat-value">{{supplierStats.total}}</text><text class="stat-link">供货工作台 ↗</text></view><view class="supplier-tile" data-tab="quotes" data-status="pending" bindtap="shortcut"><text class="tiny">等待审核</text><text class="stat-value">{{supplierStats.pending}}</text><text class="stat-link">跟进审核 ↗</text></view><view class="supplier-tile" data-tab="quotes" data-status="rejected" bindtap="shortcut"><text class="tiny">需要修改</text><text class="stat-value">{{supplierStats.rejected}}</text><text class="stat-link">查看原因 ↗</text></view><view class="supplier-tile" data-tab="quotes" data-status="expired" bindtap="shortcut"><text class="tiny">已到期</text><text class="stat-value">{{supplierStats.expired}}</text><text class="stat-link">更新供货 ↗</text></view></view>
+  <view class="card search-card">
+    <view class="search-label">{{role==='merchant'?'找商品，提交供货报价':'你想找什么样的灯？'}}</view>
+    <view class="search-input-row"><view class="ui-icon icon-search"/><input class="grow" placeholder="搜索灯具、风格或规格" placeholder-class="input-placeholder" value="{{text}}" data-key="text" bindinput="input" bindconfirm="search" confirm-type="search"/><button class="primary search-submit" loading="{{loading}}" disabled="{{loading}}" bindtap="search">搜索</button></view>
+    <view class="search-tools row between">
+      <button class="text-button" bindtap="upload"><view class="ui-icon icon-scan"/>{{image?'更换灵感图片':'用图片找相似灯具'}}</button>
+      <button class="text-button filter-toggle {{filtersOpen?'selected':''}}" bindtap="toggleFilters"><view class="ui-icon icon-sliders"/>筛选<view wx:if="{{cctIndex||budget!==''||available}}" class="filter-dot"/><text>{{filtersOpen?'−':'+'}}</text></button>
+    </view>
+    <view wx:if="{{image}}" class="query-image-note"><view class="ui-icon icon-check"/><text>图片已上传，将结合图片与关键词查找</text></view>
+    <view wx:if="{{filtersOpen}}" class="expanded-filters">
+      <view class="filter-grid"><view><text class="field">最高预算（元）</text><input type="digit" placeholder="不限预算" placeholder-class="input-placeholder" value="{{budget}}" data-key="budget" bindinput="input" bindblur="applyFilters"/></view><view><text class="field">色温</text><picker range="{{cctOptions}}" value="{{cctIndex}}" bindchange="cct"><view class="picker row between">{{cctOptions[cctIndex]}}<text>⌄</text></view></picker></view></view>
+      <view class="row between"><view class="check"><switch color="#234d40" checked="{{available}}" bindchange="available"/><text>仅看有货</text></view><button class="text-button" bindtap="clear">重置全部</button></view>
+      <view class="filter-guide">K 表示光色，W 表示功率，lm 表示光通量。缺失参数需商家补充。</view>
+    </view>
+    <view wx:if="{{image}}" class="crop-panel"><view class="check"><switch color="#234d40" checked="{{cropping}}" bindchange="cropping"/><text>局部框选</text></view><view wx:if="{{cropping}}" class="filter-grid"><view wx:for="{{cropFields}}" wx:key="key"><text class="field">{{item.label}}（0–1）</text><input type="digit" data-key="crop.{{item.key}}" bindinput="input" value="{{crop[item.key]}}"/></view></view></view>
+  </view>
+  <view wx:if="{{notice}}" class="notice">{{notice}}<button class="small" bindtap="feedback">反馈</button></view>
+  <view wx:if="{{role==='customer'}}" class="home-shortcuts">
+    <button data-tab="wishlist" bindtap="shortcut"><view class="shortcut-icon"><view class="ui-icon icon-layers"/></view><text>房间清单</text><text class="shortcut-note">把灵感装进家</text></button>
+    <button data-tab="inquiries" bindtap="shortcut"><view class="shortcut-icon"><view class="ui-icon icon-message"/></view><text>询价进度</text><text class="shortcut-note">好报价有回应</text></button>
+    <button data-tab="orders" bindtap="shortcut"><view class="shortcut-icon"><view class="ui-icon icon-box"/></view><text>我的订单</text><text class="shortcut-note">期待每次抵达</text></button>
+  </view>
+  <view class="catalog-section row between"><view><view class="section">{{role==='merchant'?(searchMode?'找到的供货商品':'发现更多供货机会'):(searchMode?'为你找到的灯具':'为生活，添一束光')}}</view><view class="tiny">{{searchMode?'按相关度呈现匹配结果':role==='merchant'?'选好规格，提交你的供货方案':'精选灯具 · 从喜欢到合适'}}</view></view><picker range="{{sortOptions}}" value="{{sortIndex}}" disabled="{{searchMode}}" bindchange="sort"><view class="sort-label">{{searchMode?'相关度优先':sortOptions[sortIndex]}}<text wx:if="{{!searchMode}}">⌄</text></view></picker></view>
+  <scroll-view scroll-x class="category-scroll" show-scrollbar="{{false}}"><view class="category-chips"><button wx:for="{{categories}}" wx:key="*this" class="{{categoryIndex===index?'active':''}}" data-index="{{index}}" bindtap="categoryChip">{{item}}</button></view></scroll-view>
+  <view class="grid">
+    <view wx:for="{{products}}" wx:key="selected_sku_id" class="product" data-id="{{item.id}}" data-sku="{{item.selected_sku_id}}" bindtap="detail">
+      <view class="product-photo"><image wx:if="{{item.picture}}" src="{{item.picture}}" aria-label="{{item.name}}" mode="aspectFill" lazy-load/><view wx:else class="product-placeholder">图片待补充</view><view class="product-chip">{{item.category}}</view></view>
+      <view class="product-copy"><view class="product-code">{{item.skuCode}}</view><view class="product-name">{{item.name}}</view><view class="tiny product-suppliers">{{item.quote_count}} 家商家报价</view><view class="price">{{item.priceText}}<text class="tiny"> / 该规格</text></view><button wx:if="{{role==='merchant'}}" class="card-action" data-id="{{item.id}}" data-sku="{{item.selected_sku_id}}" catchtap="offer">立即报价<text>↗</text></button><button wx:else class="card-action" data-id="{{item.id}}" data-sku="{{item.selected_sku_id}}" catchtap="detail">查看规格<text>↗</text></button></view>
+    </view>
+  </view>
+  <view wx:if="{{!products.length&&!loading}}" class="empty"><view class="empty-icon"><view class="ui-icon icon-search"/></view><view class="empty-title">暂时没有找到合适的灯</view><view class="muted">试试其他关键词，或放宽筛选条件</view><button class="small" bindtap="clear">重置并浏览全部</button></view>
+  <view class="catalog-pagination"><view wx:if="{{loading}}" class="muted">正在为你寻找好灯…</view><block wx:elif="{{!searchMode&&products.length}}"><button wx:if="{{hasMore}}" class="small" bindtap="loadMore">再看看更多灯具 ↓</button><view wx:else class="tiny">已展示全部 {{total}} 款灯具</view></block></view>
+  <swiper wx:if="{{banners.length}}" class="catalog-banners" autoplay circular indicator-dots indicator-active-color="#234d40"><swiper-item wx:for="{{banners}}" wx:key="image"><image class="banner-image" mode="aspectFill" src="{{item.picture}}" data-link="{{item.link}}" bindtap="banner"/></swiper-item></swiper>
+  <view class="catalog-footer"><view class="ui-icon icon-sun"/><text>{{role==='merchant'?'好供货，让合作更长久。':'让好设计，遇见合适的光。'}}</text></view>
+</view>
+</block>

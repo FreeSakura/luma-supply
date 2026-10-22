@@ -1,0 +1,43 @@
+<view class="page auth-page">
+  <view class="brand mobile-brand"><view class="ui-icon icon-sun"/><text>Luma<text class="brand-light">Supply</text></text></view>
+  <view class="auth-story">
+    <view class="eyebrow">选灯 · 供货 · 协同</view>
+    <view class="auth-title"><view>让好设计，</view><view>遇见合适的光。</view></view>
+    <view class="auth-description">从一张灵感图片，到如期抵达的灯具。</view>
+    <view class="lamp-scene auth-lamp" aria-hidden="true"><view class="lamp-glow"/><view class="lamp-cord"/><view class="lamp-cap"/><view class="lamp-shade"/><view class="lamp-light"/></view>
+  </view>
+  <view class="auth-card">
+    <view class="eyebrow">你的灯具协同工作空间</view>
+    <view class="auth-heading">{{mode==='register'?'创建账户':mode==='reset'?'找回密码':'欢迎回来'}}</view>
+    <view class="muted auth-subtitle">{{mode==='register'?'开启你的选灯与供货之旅':mode==='reset'?'通过手机验证码设置新密码':'登录账户，继续你的灯光计划'}}</view>
+    <view wx:if="{{mode==='login'||mode==='code'}}" class="auth-tabs">
+      <button class="{{mode==='login'?'active':''}}" disabled="{{busy}}" data-mode="login" bindtap="mode">账号密码</button>
+      <button class="{{mode==='code'?'active':''}}" disabled="{{busy}}" data-mode="code" bindtap="mode">验证码登录</button>
+    </view>
+    <view wx:if="{{mode==='register'}}" class="check auth-agreement"><switch color="#234d40" checked="{{role==='merchant'}}" bindchange="role"/><text>{{role==='merchant'?'注册商家账号':'注册客户账号'}}</text></view>
+    <block wx:if="{{mode==='login'||mode==='register'}}">
+      <text class="field">用户名</text>
+      <input placeholder="请输入用户名" placeholder-class="input-placeholder" data-key="username" bindinput="input" value="{{form.username}}" disabled="{{busy}}" adjust-position/>
+    </block>
+    <block wx:if="{{mode!=='login'}}">
+      <text class="field">手机号</text>
+      <input type="number" placeholder="请输入手机号" placeholder-class="input-placeholder" value="{{form.phone}}" data-key="phone" bindinput="input" disabled="{{busy}}"/>
+      <text class="field">短信验证码</text>
+      <view class="code-input"><input class="grow" type="number" maxlength="6" placeholder="输入验证码" placeholder-class="input-placeholder" value="{{form.code}}" data-key="code" bindinput="input" disabled="{{busy}}"/><button class="text-button" bindtap="send" disabled="{{busy}}">获取验证码</button></view>
+      <view wx:if="{{devCode}}" class="notice">本地开发验证码 {{devCode}}，未发送短信</view>
+    </block>
+    <block wx:if="{{mode!=='code'}}">
+      <view class="row between field-row"><text class="field">{{mode==='reset'?'新密码':'密码'}}</text><button wx:if="{{mode==='login'}}" class="text-button" disabled="{{busy}}" data-mode="reset" bindtap="mode">忘记密码？</button></view>
+      <input password placeholder="{{mode==='login'?'请输入密码':'请设置密码'}}" placeholder-class="input-placeholder" value="{{form.password}}" data-key="password" bindinput="input" confirm-type="done" bindconfirm="submit" disabled="{{busy}}"/>
+    </block>
+    <block wx:if="{{mode==='login'||mode==='code'||mode==='reset'}}">
+      <button class="text-button otp-toggle" bindtap="toggleOtp">{{otpOpen?'收起动态口令 −':'管理账号动态口令 +'}}</button>
+      <input wx:if="{{otpOpen}}" type="number" maxlength="8" placeholder="请输入验证器动态口令" placeholder-class="input-placeholder" value="{{form.otp}}" data-key="otp" bindinput="input" disabled="{{busy}}"/>
+    </block>
+    <view wx:if="{{mode==='register'}}" class="check auth-agreement"><switch color="#234d40" checked="{{form.agreement}}" bindchange="agree"/><text>同意协议与隐私说明，资料用于履约。</text></view>
+    <button class="primary auth-submit" loading="{{busy}}" disabled="{{busy}}" bindtap="submit">{{mode==='register'?'创建账户':mode==='reset'?'重设密码':'登录'}}<text wx:if="{{!busy}}">→</text></button>
+    <view class="auth-footer"><text>{{mode==='register'||mode==='reset'?'已有账户？':'还没有账户？'}}</text><button class="text-button" disabled="{{busy}}" data-mode="{{mode==='register'||mode==='reset'?'login':'register'}}" bindtap="mode">{{mode==='register'||mode==='reset'?'返回登录':'立即注册'}}</button></view>
+  </view>
+  <view class="auth-note"><view class="ui-icon icon-shield"/><text>客户 · 商家 · 管理协同，一个账户开启工作空间</text></view>
+  <view class="auth-demo">课程演示可使用已有账号登录，无需微信授权</view>
+</view>

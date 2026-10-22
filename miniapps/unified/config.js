@@ -1,0 +1,1 @@
+module.exports = {"role": "auto", "baseUrl": "http://127.0.0.1:8000", "version": "2.1.0", "demo": true}

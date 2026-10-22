@@ -1,4 +1,5 @@
 import os
+import ipaddress
 import secrets
 from datetime import timedelta
 from typing import Literal
@@ -64,6 +65,13 @@ def send_code(body: PhoneIn, request: Request, db: Session = Depends(session, sc
     code = f"{secrets.randbelow(1000000):06d}"
     endpoint = os.getenv("SMS_ENDPOINT")
     development = os.getenv("APP_ENV", "development") == "development" and request.client.host in ["127.0.0.1", "::1", "testclient"]
+    demo_lan = False
+    if os.getenv('APP_ENV', 'development') == 'development' and os.getenv('DEMO_SMS_LAN') == '1':
+        try:
+            demo_lan = ipaddress.ip_address(request.client.host).is_private
+        except ValueError:
+            demo_lan = False
+    development = development or demo_lan
     expect(endpoint or development, "短信服务未配置", 503)
     phone_bucket = consume(db, 'sms-phone', body.phone, 60)
     allowed = phone_bucket.failures == 1
@@ -308,4 +316,3 @@ def update_staff(user_id: int, body: StaffEdit, user=Depends(require("admin")), 
     for k, v in body.model_dump().items(): setattr(obj, k, v)
     audit(db, user, "staff.update", obj.id, body.model_dump())
     return user_view(obj)
-
