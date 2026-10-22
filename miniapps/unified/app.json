@@ -1,0 +1,44 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/work/index",
+    "pages/profile/index",
+    "pages/admin/index",
+    "pages/detail/index",
+    "pages/login/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "LumaSupply",
+    "navigationBarBackgroundColor": "#f5f5f0",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f5f0"
+  },
+  "tabBar": {
+    "color": "#8e9982",
+    "selectedColor": "#234d40",
+    "backgroundColor": "#fafbf7",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "选灯",
+        "iconPath": "assets/navigation/discover.png",
+        "selectedIconPath": "assets/navigation/discover-active.png"
+      },
+      {
+        "pagePath": "pages/work/index",
+        "text": "选购与订单",
+        "iconPath": "assets/navigation/plan.png",
+        "selectedIconPath": "assets/navigation/plan-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "assets/navigation/profile.png",
+        "selectedIconPath": "assets/navigation/profile-active.png"
+      }
+    ],
+    "borderStyle": "white"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

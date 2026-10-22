@@ -1,0 +1,65 @@
+const app = () => getApp()
+Page({
+ data: {filtersOpen:false,products:[], categories:['全部'], categoryIndex:0, text:'', image:null, budget:'', available:false, lang:'zh', role:'customer', admin:false, dashboard:{}, adminLinks:[],adminGroups:[],adminHasDashboard:false, notice:'', banners:[], cropping:false, crop:{x:0,y:0,w:1,h:1},cropFields:[{key:'x',label:'左边界'},{key:'y',label:'上边界'},{key:'w',label:'宽度'},{key:'h',label:'高度'}], loading:false, total:0, nextOffset:0, hasMore:false, searchMode:false,cctIndex:0,cctOptions:['不限'],cctValues:[null],sortIndex:0,sortOptions:['最新上架','价格从低到高','价格从高到低'],sortValues:['newest','price_asc','price_desc'],supplierStats:{total:0,pending:0,rejected:0,expired:0},signedIn:false},
+ async onShow() {
+  if(app().globalData.token){try{await app().ensureUser()}catch(_){return}}app().syncTabs();const role=app().globalData.role;this.setData({lang:app().globalData.lang, role,admin:role==='admin'||role==='staff',signedIn:!!app().globalData.token});if(this.data.admin){if(app().requireLogin())await this.loadAdmin();return}if(this.data.role==='merchant'&&this.data.signedIn)await this.refreshSupplier()
+  if (this._initialized && this._token === app().globalData.token) return
+  this.resetFilters();this._token = app().globalData.token
+  try {
+   const [cats, settings, lighting] = await Promise.all([app().request('/catalog/categories'), app().request('/settings'),app().request('/catalog/lighting-options')])
+   this.setData({cctIndex:0,cctOptions:['不限',...lighting.cct_k.map(k=>k+' K')],cctValues:[null,...lighting.cct_k],categories:['全部', ...cats], categoryIndex:0, banners:(settings[app().globalData.role+'_banners']||[]).map(x=>({...x,picture:app().picture(x.image)}))})
+   await this.load(); this._initialized = true
+  } catch (_) { /* request() displays the actual error. */ }
+ },
+ async loadAdmin(){try{const modules=require('../../admin/modules').visible(app().globalData.user);this.setData({adminLinks:modules,adminGroups:require('../../admin/modules').grouped(app().globalData.user),adminHasDashboard:modules.some(x=>x.id==='dashboard')});const d=modules.some(x=>x.id==='dashboard')?await app().request('/admin/dashboard'):{};const dashboard={...d,metrics:[{label:'在售商品',value:d.products||0},{label:'销售订单',value:d.orders||0},{label:'已确认销售额',value:app().money(d.confirmed_sales)},{label:'待审核报价',value:d.pending_quotes||0}]};this.setData({dashboard})}catch(_){}},
+ adminOpen(e){wx.navigateTo({url:'/pages/admin/index?module='+e.currentTarget.dataset.module})},
+ async refreshSupplier(){try{const rows=await app().request('/quotes');this.setData({supplierStats:{total:rows.filter(q=>!q.deleted).length,pending:rows.filter(q=>app().quoteState(q)==='pending').length,rejected:rows.filter(q=>app().quoteState(q)==='rejected').length,expired:rows.filter(q=>app().quoteState(q)==='expired').length}})}catch(_){}},
+ shortcut(e){if(!app().requireLogin())return;app().globalData.nextWork={tab:e.currentTarget.dataset.tab,status:e.currentTarget.dataset.status||''};wx.switchTab({url:'/pages/work/index'})},
+ offer(e){wx.navigateTo({url:'/pages/detail/index?id='+e.currentTarget.dataset.id+'&sku='+e.currentTarget.dataset.sku+'&quote=1'})},
+ decorate(rows) {return rows.map(p=>{const s=p.skus.find(s=>s.id===p.selected_sku_id)||p.skus[0];return {...p,picture:s.images.length?app().picture(s.images[0]):'',priceText:app().money(p.min_price),skuCode:s.code}})},
+ async load(append=false) {
+  if (append && (this.data.loading || !this.data.hasMore || this.data.searchMode)) return
+  const request = this._generation = (this._generation||0) + 1
+  const category = this.data.categoryIndex ? this.data.categories[this.data.categoryIndex] : ''
+  const offset = append ? this.data.nextOffset : 0
+  this.setData({loading:true,searchMode:false,notice:'', ...(append?{}:{products:[],total:0,hasMore:false})})
+  try {
+   const result = await app().request('/catalog/page?limit=24&offset='+offset+'&category='+encodeURIComponent(category)+(this.data.cctIndex?'&cct_k='+this.data.cctValues[this.data.cctIndex]:'')+(this.data.budget!==''?'&max_price='+Math.round(Number(this.data.budget)*100):'')+(this.data.available?'&available_only=true':'')+'&sort='+this.data.sortValues[this.data.sortIndex])
+   if (request !== this._generation) return
+   const items = append ? [...this.data.products, ...this.decorate(result.items)] : this.decorate(result.items)
+   this.setData({products:[...new Map(items.map(p=>[p.id,p])).values()],total:result.total,nextOffset:result.next_offset,hasMore:result.has_more})
+  } catch (_) { /* Keep the last successful page available for a retry. */ }
+  finally {if(request===this._generation)this.setData({loading:false})}
+ },
+ loadMore() {this.load(true)},
+ onReachBottom() {this.load(true)},
+ async onPullDownRefresh() {try{if(this.data.searchMode)await this.search();else await this.load()}finally{wx.stopPullDownRefresh()}},
+ input(e) {this.setData({[e.currentTarget.dataset.key]:e.detail.value})},
+ toggleFilters(){this.setData({filtersOpen:!this.data.filtersOpen})},
+ categoryChip(e){return this.category({detail:{value:e.currentTarget.dataset.index}})},
+ category(e) {this.setData({categoryIndex:Number(e.detail.value)}); if(this.data.searchMode)this.search();else this.load()},
+ cct(e) {this.setData({cctIndex:Number(e.detail.value)});if(this.data.searchMode)this.search();else this.load()},
+ available(e) {this.setData({available:e.detail.value});this.applyFilters()},
+ applyFilters(){if(this.data.searchMode)return this.search();return this.load()},
+ sort(e){this.setData({sortIndex:Number(e.detail.value)});this.load()},
+ cropping(e) {this.setData({cropping:e.detail.value})},
+ async upload() {if(!app().requireLogin())return;try{this.setData({image:await app().upload('query')})}catch(_){}},
+ async search() {
+  if(!app().requireLogin())return
+  const d=this.data
+  if(!d.text&&!d.image){await this.load();return}
+  const request=this._generation=(this._generation||0)+1
+  this.setData({loading:true})
+  try {
+   const r=await app().request('/search',{image_id:d.image?.id||null,text:d.text,category:d.categoryIndex?d.categories[d.categoryIndex]:'',max_price:d.budget!==''?Math.round(Number(d.budget)*100):null,available_only:d.available,attributes:d.cctIndex?{cct_k:d.cctValues[d.cctIndex]}:{},crop:d.cropping?[Number(d.crop.x),Number(d.crop.y),Number(d.crop.w),Number(d.crop.h)]:null})
+   if(request!==this._generation)return
+   this.setData({products:this.decorate(r.products),notice:r.notice,queryId:r.query_id,searchMode:true,hasMore:false,total:r.products.length})
+  } catch (_) { /* request() displays the actual error. */ }
+  finally {if(request===this._generation)this.setData({loading:false})}
+ },
+ resetFilters(){this.setData({image:null,text:'',notice:'',categoryIndex:0,cctIndex:0,budget:'',available:false,sortIndex:0,cropping:false,crop:{x:0,y:0,w:1,h:1}})},
+ clear() {this.resetFilters();this.load()},
+ detail(e) {wx.navigateTo({url:'/pages/detail/index?id='+e.currentTarget.dataset.id+'&sku='+e.currentTarget.dataset.sku})},
+ banner(e) {const link=e.currentTarget.dataset.link;if(link&&link.startsWith('/product/'))wx.navigateTo({url:'/pages/detail/index?id='+link.split('/').pop()})},
+ async feedback() {await app().request('/search/'+this.data.queryId+'/feedback',{issue:'结果不符合需求'});wx.showToast({title:'已记录'})}
+})
